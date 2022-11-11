@@ -18,7 +18,7 @@ static char THIS_FILE[]=__FILE__;
 #define new DEBUG_NEW
 #endif
 
-#define INFILE  "ppot.asc"
+#define INFILE  "tri.asc" //"ppot.asc"
 #define OUTFILE "output.ppm"
 
 
@@ -160,7 +160,8 @@ GzMatrix	rotateY =
 	*/
         nameListShader[1]  = GZ_INTERPOLATE;
         //interpStyle = GZ_COLOR;         /* Gouraud shading */
-        interpStyle = GZ_NORMALS;         /* Phong shading */
+        //interpStyle = GZ_NORMALS;         /* Phong shading */
+		interpStyle = GZ_FLAT;
         valueListShader[1] = (GzPointer)&interpStyle;
 
         nameListShader[2]  = GZ_AMBIENT_COEFFICIENT;
@@ -172,7 +173,7 @@ GzMatrix	rotateY =
         valueListShader[4] = (GzPointer)&specpower;
 
         nameListShader[5]  = GZ_TEXTURE_MAP;
-#if 0   /* set up null texture function or valid pointer */
+#if 1   /* set up null texture function or valid pointer */
         valueListShader[5] = (GzPointer)0;
 #else
         valueListShader[5] = (GzPointer)(tex_fun);	/* or use ptex_fun */
@@ -180,9 +181,9 @@ GzMatrix	rotateY =
         status |= m_pRender->GzPutAttribute(6, nameListShader, valueListShader);
 
 
-	status |= m_pRender->GzPushMatrix(scale);  
-	status |= m_pRender->GzPushMatrix(rotateY); 
-	status |= m_pRender->GzPushMatrix(rotateX); 
+	status |= m_pRender->GzPushMatrix(scale, scale);  
+	status |= m_pRender->GzPushMatrix(rotateY, rotateY);
+	status |= m_pRender->GzPushMatrix(rotateX, rotateX);
 
 	if (status) exit(GZ_FAILURE); 
 
@@ -209,9 +210,9 @@ int Application5::Render()
 	/* 
 	* Tokens associated with triangle vertex values 
 	*/ 
-	nameListTriangle[0] = GZ_POSITION; 
-	nameListTriangle[1] = GZ_NORMAL; 
-	nameListTriangle[2] = GZ_TEXTURE_INDEX;  
+	nameListTriangle[0] = GZ_NORMAL;
+	nameListTriangle[1] = GZ_TEXTURE_INDEX;
+	nameListTriangle[2] = GZ_POSITION;
 
 	// I/O File open
 	FILE *infile;
@@ -257,11 +258,14 @@ int Application5::Render()
 	     * triangle, then feed it to the renderer 
 	     * NOTE: this sequence matches the nameList token sequence
 	     */ 
-	     valueListTriangle[0] = (GzPointer)vertexList; 
-		 valueListTriangle[1] = (GzPointer)normalList; 
-		 valueListTriangle[2] = (GzPointer)uvList; 
+	     valueListTriangle[0] = (GzPointer)normalList;
+		 valueListTriangle[1] = (GzPointer)uvList;
+		 valueListTriangle[2] = (GzPointer)vertexList;
 		 m_pRender->GzPutTriangle(3, nameListTriangle, valueListTriangle); 
 	} 
+
+	//NOW MAKE IT DO RAYTRACE
+	m_pRender->GzRaytracing();
 
 	m_pRender->GzFlushDisplay2File(outfile); 	/* write out or update display to file*/
 	m_pRender->GzFlushDisplay2FrameBuffer();	// write out or update display to frame buffer

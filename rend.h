@@ -1,4 +1,7 @@
 #include	"gz.h"
+#include <vector>
+#include <array>
+#include <cmath>
 #ifndef GZRENDER_
 #define GZRENDER_
 
@@ -16,15 +19,18 @@
 
 #define	MATLEVELS	100		/* how many matrix pushes allowed */
 #define	MAX_LIGHTS	10		/* how many lights allowed */
+#define	MAX_TRIANGLES	1000		/* how many lights allowed */
 
-class GzRender{			/* define a renderer */
-  
+class GzRender {			/* define a renderer */
+
 
 public:
 	unsigned short	xres;
 	unsigned short	yres;
-	GzPixel		*pixelbuffer;		/* frame buffer array */
+	GzPixel* pixelbuffer;		/* frame buffer array */
 	char* framebuffer;
+	GzTri* trianglebuffer;
+	int triIndex;
 
 	GzCamera		m_camera;
 	short		    matlevel;	        /* top of stack - current xform */
@@ -40,34 +46,41 @@ public:
 	float		    spec;		/* specular power */
 	GzTexture		tex_fun;    /* tex_fun(float u, float v, GzColor color) */
 
-  	// Constructors
+	GzRay ray;
+
+	// Constructors
 	GzRender(int xRes, int yRes);
 	~GzRender();
-
-	// Function declaration
 
 	// HW1: Display methods
 	int GzDefault();
 	int GzBeginRender();
 	int GzPut(int i, int j, GzIntensity r, GzIntensity g, GzIntensity b, GzIntensity a, GzDepth z);
-	int GzGet(int i, int j, GzIntensity *r, GzIntensity *g, GzIntensity *b, GzIntensity *a, GzDepth	*z);
+	int GzGet(int i, int j, GzIntensity* r, GzIntensity* g, GzIntensity* b, GzIntensity* a, GzDepth* z);
 
 	int GzFlushDisplay2File(FILE* outfile);
 	int GzFlushDisplay2FrameBuffer();
 
 	// HW2: Render methods
-	int GzPutAttribute(int numAttributes, GzToken *nameList, GzPointer *valueList);
-	int GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueList);
+	int GzPutAttribute(int numAttributes, GzToken* nameList, GzPointer* valueList);
+	int GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueList);
 
 	// HW3
+	int GzDefaultCamera();
 	int GzPutCamera(GzCamera camera);
-	int GzPushMatrix(GzMatrix	matrix);
+	int GzPushMatrix(GzMatrix matrix, GzMatrix norm);
 	int GzPopMatrix();
 
-	// Extra methods: NOT part of API - just for general assistance */
-	inline int ARRAY(int x, int y){return (x+y*xres);}	/* simplify fbuf indexing */
-	inline short	ctoi(float color) {return(short)((int)(color * ((1 << 12) - 1)));}		/* convert float color to GzIntensity short */
+	//raytracing
+	int GzRaytracing();
+	int PointAtTValue(float t, GzCoord coord);
+	int RayIntersection(GzTri triangle);
+	int RayThroughPoint(GzCoord pixel);
+	int Rasterize(GzTri triangle);
 
+	// Extra methods: NOT part of API - just for general assistance */
+	inline int ARRAY(int x, int y) { return (x + y * xres); }	/* simplify fbuf indexing */
+	inline short ctoi(float color) { return(short)((int)(color * ((1 << 12) - 1))); }		/* convert float color to GzIntensity short */
 
 	// Object Translation
 	int GzRotXMat(float degree, GzMatrix mat);
@@ -75,13 +88,134 @@ public:
 	int GzRotZMat(float degree, GzMatrix mat);
 	int GzTrxMat(GzCoord translate, GzMatrix mat);
 	int GzScaleMat(GzCoord scale, GzMatrix mat);
+	inline GzIntensity GzRender::clamp12BitRGB(GzIntensity value)
+	{
+		if (value < 0)	return 0;
+		else if (value > 4095) return 4095;
+		else return value;
 
-	// User add function compute color at a normal
-	void GzComputeColor(GzCoord norm, GzColor color);
-	// User add function compute (R,G,B) plane coeff or (N1,N2,N3) coeff
-	void GzComputePlane(GzCoord* vertices, GzCoord* coeff);
-	void GzComputePlane(GzCoord* vertices, GzCoord* coeff, float (*plane)[4]);
-	float planes[3][4];
+	}
+	inline float GzRender::clampFloat(float value)
+	{
+		if (value < 0.0)	return 0.0;
+		else if (value > 1.0) return 1.0;
+		else return value;
+
+	}
+	void GzRender::computeColor(GzCoord norm, GzCoord res);
+	void GzRender::matrixProduct(GzMatrix mat1, GzMatrix mat2, GzMatrix res)//NO IN PLACE!
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				res[i][j] = 0.0;
+				for (int k = 0; k < 4; k++)
+				{
+					res[i][j] += mat1[i][k] * mat2[k][j];
+				}
+
+			}
+		}
+
+	}
+	bool GzRender::transform(GzMatrix mat, GzCoord s, GzCoord res)
+	{
+		float tmpS[4] = { s[0], s[1], s[2], 1 };
+		float tmpRes[4];
+		for (int i = 0; i < 4; i++)
+		{
+			tmpRes[i] = 0;
+			for (int k = 0; k < 4; k++)
+			{
+				tmpRes[i] += mat[i][k] * tmpS[k];
+			}
+
+		}
+
+		if (tmpRes[3] < 1.0)	return false;
+		for (int i = 0; i < 3; i++)
+		{
+			res[i] = tmpRes[i] / tmpRes[3];
+		}
+		return true;
+
+	}
+
+	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
+	{
+		float res = 0;
+		for (int i = 0; i < 3; i++)
+		{
+			res += s1[i] * s2[i];
+		}
+		return res;
+	}
+
+	void GzRender::crossProduct(GzCoord s1, GzCoord s2, GzCoord res)
+	{
+		res[0] = s1[1] * s2[2] - s1[2] * s2[1];
+		res[1] = s1[2] * s2[0] - s1[0] * s2[2];
+		res[2] = s1[0] * s2[1] - s1[1] * s2[0];
+
+	}
+	void GzRender::normalize(GzCoord s, GzCoord res)
+	{
+		float value = sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+		for (int i = 0; i < 3; i++)
+		{
+			res[i] = s[i] / value;
+
+		}
+
+	}
+	void GzRender::minus(GzCoord s1, GzCoord s2, GzCoord res)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			res[i] = s1[i] - s2[i];
+
+		}
+
+	}
+	void GzRender::add(GzCoord s1, GzCoord s2, GzCoord res)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			res[i] = s1[i] + s2[i];
+
+		}
+
+	}
+	void GzRender::scalarProduct(GzCoord s, float n, GzCoord res)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			res[i] = s[i] * n;
+
+		}
+
+	}
+
+
+
+
+	class DDA
+	{
+	public:
+		float* start;
+		float* end;
+		float current[3];
+		float slopeX;
+		float slopeZ;
+		bool leftOrTop;
+		DDA(float start[3], float end[3]);
+		void initEdge();
+		void initSpan();
+		void iterateSpan(GzRender* render, float abcd[5][4]);
+		void GzRender::DDA::nextY();
+	};
+
 
 };
 #endif
