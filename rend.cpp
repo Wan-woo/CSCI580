@@ -558,22 +558,19 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 		case GZ_POSITION:
 		{
 			GzCoord triCoord[3];
+			GzCoord rawCoord[3];
 			for (int j = 0; j < 3; j++)
 			{
 				for (int k = 0; k < 3; k++)
 				{
-
-					triCoord[j][k] = ((GzCoord*)valueList[i])[j][k];
-
+					rawCoord[j][k] = ((GzCoord*)valueList[i])[j][k];
 				}
-
-
 			}
 
 			//transform from model space to screen space
 			for (int coord = 0; coord < 3; coord++)
 			{
-				boolean inRangeZ = transform(Ximage[matlevel], triCoord[coord], triCoord[coord]);
+				boolean inRangeZ = transform(Ximage[matlevel], rawCoord[coord], triCoord[coord]);
 				if (!inRangeZ)	return GZ_SUCCESS;
 
 				float Vz = triCoord[coord][2] / (INT_MAX - triCoord[coord][2]);
@@ -581,83 +578,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 				uv[coord][1] /= (Vz + 1);
 
 			}
-			////compute ABCD for interpolation
-			//float abcd[5][4];
-
-			//if (interp_mode == GZ_FLAT)
-			//{
-			//	computeColor(triNorm[0], flatcolor);
-			//}
-			//else if (interp_mode == GZ_COLOR)
-			//{
-
-			//	GzColor vertexRGB[3];
-			//	for (int vol = 0; vol < 3; vol++)
-			//	{
-			//		Ks[vol] = 1.0;
-			//		Kd[vol] = 1.0;
-			//		Ka[vol] = 1.0;
-			//	}
-			//	for (int vertex = 0; vertex < 3; vertex++)// for every vertex
-			//	{
-
-			//		computeColor(triNorm[vertex], vertexRGB[vertex]);
-			//	}
-
-
-			//	for (int volume = 0; volume < 3; volume++)
-			//	{
-			//		GzCoord e01;
-			//		GzCoord e12;
-			//		minus(triCoord[0], triCoord[1], e01);
-			//		e01[2] = vertexRGB[0][volume] - vertexRGB[1][volume];
-			//		minus(triCoord[1], triCoord[2], e12);
-			//		e12[2] = vertexRGB[1][volume] - vertexRGB[2][volume];
-			//		crossProduct(e01, e12, abcd[volume]);
-
-			//		abcd[volume][3] = (-1) * (abcd[volume][0] * triCoord[0][0] + abcd[volume][1] * triCoord[0][1]
-			//			+ abcd[volume][2] * vertexRGB[0][volume]);
-
-			//	}
-
-
-			//}
-			//else if (interp_mode == GZ_NORMALS)
-			//{
-
-			//	for (int volume = 0; volume < 3; volume++)
-			//	{
-			//		GzCoord e01;
-			//		GzCoord e12;
-			//		minus(triCoord[0], triCoord[1], e01);
-			//		e01[2] = triNorm[0][volume] - triNorm[1][volume];
-			//		minus(triCoord[1], triCoord[2], e12);
-			//		e12[2] = triNorm[1][volume] - triNorm[2][volume];
-			//		crossProduct(e01, e12, abcd[volume]);
-
-			//		abcd[volume][3] = (-1) * (abcd[volume][0] * triCoord[0][0] + abcd[volume][1] * triCoord[0][1]
-			//			+ abcd[volume][2] * triNorm[0][volume]);
-
-			//	}
-			//}
-
-			//for (int volume = 3; volume < 5; volume++)//u and v
-			//{
-
-			//	GzCoord e01;
-			//	GzCoord e12;
-			//	minus(triCoord[0], triCoord[1], e01);
-			//	e01[2] = uv[0][volume - 3] - uv[1][volume - 3];
-			//	minus(triCoord[1], triCoord[2], e12);
-			//	e12[2] = uv[1][volume - 3] - uv[2][volume - 3];
-			//	crossProduct(e01, e12, abcd[volume]);
-
-			//	abcd[volume][3] = (-1) * (abcd[volume][0] * triCoord[0][0] + abcd[volume][1] * triCoord[0][1]
-			//		+ abcd[volume][2] * uv[0][volume - 3]);
-
-			//}
-
-
 
 			//sort
 			for (int j = 0; j < 3; j++)
@@ -678,119 +598,20 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 			}
 
 			//trianglebuffer
+			GzCoord imageCoord[3];
+			for (int coord = 0; coord < 3; coord++)
+			{
+				transform(Xnorm[matlevel], rawCoord[coord], imageCoord[coord]);
+			}
 			for (int j = 0; j < 3; j++)
 			{
 				for (int k = 0; k < 3; k++)
 				{
-					trianglebuffer[triIndex].vertices[j][k] = triCoord[j][k];
+					trianglebuffer[triIndex].vertices[j][k] = imageCoord[j][k];
 				}
 			}
 			triIndex++;
-
-			//DDA* dda01 = new DDA(triCoord[0], triCoord[1]);
-			//DDA* dda12 = new DDA(triCoord[1], triCoord[2]);
-			//DDA* dda02 = new DDA(triCoord[0], triCoord[2]);
-
-			////decide left/right
-			//if (triCoord[0][Y] == triCoord[1][Y])//top horizon
-			//{
-			//	//advance
-			//	dda12->initEdge();
-			//	dda02->initEdge();
-
-			//	dda01->leftOrTop = true;
-			//	dda12->leftOrTop = false;
-			//	dda02->leftOrTop = true;
-			//}
-			//else if (triCoord[1][Y] == triCoord[2][Y])//bottom horizon
-			//{
-			//	//advance
-			//	dda01->initEdge();
-			//	dda02->initEdge();
-
-			//	dda01->leftOrTop = true;
-			//	dda12->leftOrTop = false;
-			//	dda02->leftOrTop = false;
-			//}
-			//else
-			//{
-			//	//advance
-			//	dda01->initEdge();
-			//	dda12->initEdge();
-			//	dda02->initEdge();
-
-			//	if (dda01->slopeX > dda02->slopeX)
-			//	{
-			//		dda01->leftOrTop = false;
-			//		dda12->leftOrTop = false;
-			//		dda02->leftOrTop = true;
-			//	}
-			//	else
-			//	{
-			//		dda01->leftOrTop = true;
-			//		dda12->leftOrTop = true;
-			//		dda02->leftOrTop = false;
-			//	}
-
-			//}
-
-			//std::vector<std::array<float, 3>> result;
-			//std::vector<std::array<float, 3>> resultColor;
-			////first half
-
-			//while (dda01->current[Y] < dda01->end[Y])
-			//{
-			//	DDA* ddaSpan;
-			//	if (dda01->leftOrTop)
-			//	{
-			//		ddaSpan = new DDA(dda01->current, dda02->current);
-
-			//	}
-			//	else
-			//	{
-			//		ddaSpan = new DDA(dda02->current, dda01->current);
-			//	}
-			//	ddaSpan->initSpan();
-			//	ddaSpan->iterateSpan(this, abcd);
-			//	dda01->nextY();
-			//	dda02->nextY();
-			//	delete ddaSpan;
-
-			//}
-
-			////second half
-
-			//while (dda02->current[Y] < dda02->end[Y])
-			//{
-			//	DDA* ddaSpan;
-			//	if (dda02->leftOrTop)
-			//	{
-			//		ddaSpan = new DDA(dda02->current, dda12->current);
-
-			//	}
-			//	else
-			//	{
-			//		ddaSpan = new DDA(dda12->current, dda02->current);
-			//	}
-			//	ddaSpan->initSpan();
-			//	ddaSpan->iterateSpan(this, abcd);
-			//	dda02->nextY();
-			//	dda12->nextY();
-			//	delete ddaSpan;
-
-			//}
-
-			///*
-			//char* str = new char[80];
-			//sprintf(str, "%f, %f, %f\n", triCoord[0][1], triCoord[1][1], triCoord[2][2]);
-			//OutputDebugStringA((LPCSTR)str);
-			//*/
-
-			//delete dda01;
-			//delete dda02;
-			//delete dda12;
-
-			//break;
+			break;
 		}
 
 		case GZ_NORMAL:
@@ -799,12 +620,8 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 			{
 				for (int k = 0; k < 3; k++)
 				{
-
 					triNorm[j][k] = ((GzCoord*)valueList[i])[j][k];
-
 				}
-
-
 			}
 
 			//transform normals from model space to image space
@@ -862,6 +679,7 @@ int GzRender::GzRaytracing()
 		ray.direction[0] = (tri.vertices[0][X]+ tri.vertices[1][X] + tri.vertices[2][X]) / 3.0 - ray.origin[X];
 		ray.direction[1] = (tri.vertices[0][Y] + tri.vertices[1][Y] + tri.vertices[2][Y]) / 3.0 - ray.origin[Y];
 		ray.direction[2] = (tri.vertices[0][Z] + tri.vertices[1][Z] + tri.vertices[2][Z]) / 3.0 - ray.origin[Z];
+		normalize(ray.direction, ray.direction);
 
 		//shoot ray through pixels in triangle
 		int result = RayIntersection(tri);
@@ -879,6 +697,69 @@ int GzRender::GzRaytracing()
 	}
 
 	return GZ_SUCCESS;
+}
+
+int GzRender::PointAtTValue(float t, GzCoord coord)
+{
+	//origin + t * dir
+	GzCoord scaled;
+	scalarProduct(ray.direction, t, scaled);
+	add(ray.origin, scaled, coord);
+
+	return GZ_SUCCESS;
+}
+
+int GzRender::RayIntersection(GzTri triangle)
+{
+	//compute triangle (plane) normal using: crossProduct(1, 2, result)
+	GzCoord edge1, edge2, edge3;
+	minus(triangle.vertices[1], triangle.vertices[0], edge1);
+	minus(triangle.vertices[2], triangle.vertices[1], edge2);
+	minus(triangle.vertices[0], triangle.vertices[2], edge3);
+
+	GzCoord planeNorm;
+	crossProduct(edge1, edge2, planeNorm);
+	normalize(planeNorm, planeNorm);
+
+	//check if ray and triangle are parallel
+	float dir = dotProduct(planeNorm, ray.direction);
+	if (dir == 0)
+	{
+		//no intersection
+		return GZ_FAILURE;
+	}
+
+	//compute D then t, ensure t >= 0
+	float dCoeff = dotProduct(planeNorm, triangle.vertices[0]);
+	float tValue = -1 * (dotProduct(planeNorm, ray.origin) + dCoeff) / dotProduct(planeNorm, ray.direction);
+	if (tValue < 0)
+	{
+		//no intersection
+		return GZ_FAILURE;
+	}
+
+	//check if intersection point is inside triangle
+	GzCoord Pvalue, coord1, coord2, coord3, cross1, cross2, cross3;
+	PointAtTValue(tValue, Pvalue);
+
+	minus(Pvalue, edge1, coord1);
+	minus(Pvalue, edge2, coord2);
+	minus(Pvalue, edge3, coord3);
+	crossProduct(edge1, coord1, cross1);
+	crossProduct(edge2, coord2, cross2);
+	crossProduct(edge3, coord3, cross3);
+	
+	float dot1, dot2, dot3;
+	dot1 = dotProduct(planeNorm, cross1);
+	dot2 = dotProduct(planeNorm, cross2);
+	dot3 = dotProduct(planeNorm, cross3);
+
+	if (dot1 > 0 && dot2>0 && dot3>0)
+	{
+		return GZ_SUCCESS;	 //ray hits triangle :)
+	}
+	
+	return GZ_FAILURE;
 }
 
 int GzRender::Rasterize(GzTri triangle)
@@ -1072,74 +953,6 @@ int GzRender::Rasterize(GzTri triangle)
 	delete dda12;
 
 	return GZ_SUCCESS;
-}
-
-int GzRender::PointAtTValue(float t, GzCoord coord)
-{
-	//origin + t * dir
-	GzCoord scaled;
-	scalarProduct(ray.direction, t, scaled);
-	add(ray.origin, scaled, coord);
-
-	return GZ_SUCCESS;
-}
-
-int GzRender::RayIntersection(GzTri triangle)
-{
-	//compute triangle (plane) normal using: crossProduct(1, 2, result)
-	GzCoord edge1, edge2, edge3;
-	minus(triangle.vertices[1], triangle.vertices[0], edge1);
-	minus(triangle.vertices[2], triangle.vertices[1], edge2);
-	minus(triangle.vertices[0], triangle.vertices[2], edge3);
-
-	GzCoord planeNorm;
-	crossProduct(edge1, edge2, planeNorm);
-
-	//check if ray and triangle are parallel
-	float dir = dotProduct(planeNorm, ray.direction);
-	if (dir == 0)
-	{
-		//no intersection
-		return GZ_FAILURE;
-	}
-
-	//compute D then t, ensure t >= 0
-	float dCoeff = -1 * dotProduct(planeNorm, triangle.vertices[0]);
-	float tValue = -1 * (dotProduct(planeNorm, ray.origin) + dCoeff);
-	if (tValue < 0)
-	{
-		//no intersection
-		return GZ_FAILURE;
-	}
-
-	//check if intersection point is inside triangle
-	GzCoord point, pEdge, result;
-	PointAtTValue(tValue, point);
-	minus(point, triangle.vertices[0], pEdge);
-	crossProduct(edge1, pEdge, result);
-	if (dotProduct(planeNorm, result) < 0)
-	{
-		//no intersection
-		return GZ_FAILURE;
-	}
-
-	minus(point, triangle.vertices[1], pEdge);
-	crossProduct(edge2, pEdge, result);
-	if (dotProduct(planeNorm, result) < 0)
-	{
-		//no intersection
-		return GZ_FAILURE;
-	}
-
-	minus(point, triangle.vertices[2], pEdge);
-	crossProduct(edge3, pEdge, result);
-	if (dotProduct(planeNorm, result) < 0)
-	{
-		//no intersection
-		return GZ_FAILURE;
-	}
-
-	return GZ_SUCCESS; //ray hits triangle :)
 }
 
 int GzRender::GzRotXMat(float degree, GzMatrix mat)
