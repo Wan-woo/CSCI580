@@ -1,0 +1,70 @@
+﻿cl : command line warning D9035: option 'Gm' has been deprecated and will be removed in a future release
+  rend.cpp
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\ray.h(33,12): warning C4552: '+': result of expression not used
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(19,14): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(19,14): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(19,35): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(19,35): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(20,14): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(20,14): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(20,38): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(20,38): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(33,24): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(33,24): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(33,51): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(33,51): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(35,8): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(35,8): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(35,39): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(35,39): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(48,24): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(48,24): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(48,45): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(48,45): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(49,11): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(49,11): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(49,35): warning C4838: conversion from 'double' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(49,35): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(99,27): warning C4838: conversion from 'int' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(99,27): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(99,43): warning C4838: conversion from 'int' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(99,43): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(100,14): warning C4838: conversion from 'int' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(100,14): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(100,27): warning C4838: conversion from 'int' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(100,27): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(101,11): warning C4838: conversion from 'INT' to 'float' requires a narrowing conversion
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(102,17): warning C4305: 'initializing': truncation from 'INT' to 'float'
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(142,13): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(166,21): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(239,12): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(448,10): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(449,12): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(455,10): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(456,12): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(541,10): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(542,10): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(543,10): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(544,10): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(586,52): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(587,52): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(588,52): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(771,14): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(773,15): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(778,14): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(779,14): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(805,93): warning C4244: 'argument': conversion from 'double' to 'GzDepth', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(825,10): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(826,10): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(850,10): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(852,30): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(853,30): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(854,30): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(865,18): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(866,17): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(867,14): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(868,21): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(889,12): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(890,12): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Nour Hamade\Documents\GitHub\CSCI580\rend.cpp(555): warning C4715: 'clamp': not all control paths return a value
+  CS580HW5.vcxproj -> C:\Users\Nour Hamade\Documents\GitHub\CSCI580\Debug\CS580HW5.exe

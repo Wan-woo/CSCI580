@@ -5,6 +5,7 @@
 #include	"math.h"
 #include	"Gz.h"
 #include	"rend.h"
+#include	"ray.h"
 
 #define PI (float) 3.14159265358979323846
 
@@ -65,7 +66,6 @@ int GzRender::GzTrxMat(GzCoord translate, GzMatrix mat)
 	return GZ_SUCCESS;
 }
 
-
 int GzRender::GzScaleMat(GzCoord scale, GzMatrix mat)
 {
 /* HW 3.5
@@ -77,7 +77,6 @@ int GzRender::GzScaleMat(GzCoord scale, GzMatrix mat)
 	mat[2][2] = mat[2][2] * scale[2];
 	return GZ_SUCCESS;
 }
-
 
 GzRender::GzRender(int xRes, int yRes)
 {
@@ -145,7 +144,15 @@ float GzCoordLength(GzCoord coord)
 
 float GzDot(GzCoord coord1, GzCoord coord2)
 {
-	return coord1[0] * coord2[0] + coord1[1] * coord2[1] + coord1[2] * coord2[2];
+	return coord1[X] * coord2[X] + coord1[Y] * coord2[Y] + coord1[Z] * coord2[Z];
+}
+
+void GzCrossProduct(GzCoord coord1, GzCoord coord2, GzCoord result) 
+{
+	
+	result[0] = coord1[1] * coord2[2] - coord1[2] * coord2[1];
+	result[1] = coord1[2] * coord2[0] - coord1[0] * coord2[2];
+	result[2] = coord1[0] * coord2[1] - coord1[1] * coord2[0];
 }
 
 int GzRender::GzBeginRender()
@@ -801,5 +808,105 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		}
 	}
 	return GZ_SUCCESS;
+}
+
+
+//Raytracing Implemented below
+
+//code taken from raytracing book 1
+bool hit_sphere(const GzCoord& center, double radius, GzRay& r)
+{
+	GzCoord oc = { (r.origin[X] - center[X]),
+		(r.origin[Y] - center[Y]), 
+		(r.origin[Z] - center[Z]) };
+
+
+	float a = GzDot(r.direction, r.direction); 
+	float b = 2.0 * GzDot(oc, r.direction); 
+	float c = GzDot(oc, oc) - radius*radius;
+	float discriminant = b * b - 4 * a * c;
+
+	return (discriminant > 0);
+}
+
+int GzRender::ray_color(GzRay& r, GzColor result)
+{
+	GzCoord coord = { 0, 0, -1 }; //where the eye is 
+
+	if (hit_sphere(coord, 0.5, r))
+	{
+		result[0] = 1;
+		result[1] = 0;
+		result[2] = 0; 
+
+		return GZ_SUCCESS; 
+	}
+
+	float mag = GzCoordLength(r.direction); //sqrt(r.direction[X] * r.direction[X] + r.direction[Y] * r.direction[Y] + r.direction[Z] * r.direction[Z]);
+
+	GzCoord unit_direction = { (r.direction[X] / mag),
+		(r.direction[Y] / mag), (r.direction[Z] / mag) };
+
+	float t = 0.5 * (unit_direction[Y] + 1.0); 
+
+	result[0] = (1.0 - t) * 1.0 + t * 0.5; 
+	result[1] = (1.0 - t) * 1.0 + t * 0.7; 
+	result[2] = (1.0 - t) * 1.0 + t * 1.0; 
+
+	return GZ_SUCCESS; 
+}
+
+int GzRender::GzRaytracing()
+{
+	GzRay r;
+	
+	//Camera 
+	
+	float invHeight = 1 / yres; 
+	float invWidth = 1 / xres;	
+	float angle = tan(PI * 0.5 * m_camera.FOV / 180); 
+	float aspect_ratio = xres / yres; 
+
+	GzCoord horizontal = { invWidth, 0, 0 };
+	GzCoord vertical = { 0, invHeight, 0 }; 
+	GzCoord focal_length = { 0, 0, 1.0 }; 
+	GzCoord lower_left = {};
+
+
+	for (int i = 0; i < 3; i++)
+	{
+		r.origin[i] = m_camera.position[i]; //origin of the ray is based on the camera 
+		//lower_left[i] = r.origin[i] - horizontal[i] / 2 - vertical[i] / 2 - focal_length[i]; 
+	}
+				//ray r(origin, lower_left_corner + u*horizontal + v*vertical - origin);
+				//color pixel_color = ray_color(r);
+
+	
+	for (int y = yres - 1; y >= 0; --y)
+	{
+		for (int x = 0; x < xres; ++x)
+		{
+			float u = (2 * ((x + 0.5) * invWidth) - 1) * angle* aspect_ratio; //float(x) / (xres - 1);
+			float v = (1 - 2 * ((y + 0.5) * invHeight)) * angle; //float(y) / (yres - 1); 
+
+			float mag = GzCoordLength(r.direction);
+
+			r.direction[X] = u / mag; 
+			r.direction[Y] = v / mag; 
+			r.direction[Z] = -1 / mag;
+
+
+
+			//then assign to flat color? and call GzPut flatcolor
+			GzColor pixel_color = {}; 
+			ray_color(r, pixel_color); 
+			GzPut(x, y, ctoi(pixel_color[RED]), ctoi(pixel_color[GREEN]), ctoi(pixel_color[BLUE]), 1, MAXINT); 
+			
+		}
+	}
+
+
+	
+	return GZ_SUCCESS; 
 }
 

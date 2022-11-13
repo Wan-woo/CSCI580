@@ -83,5 +83,9 @@ public:
 	void GzComputePlane(GzCoord* vertices, GzCoord* coeff, float (*plane)[4]);
 	float planes[3][4];
 
+	//Raytracing
+	int GzRaytracing();
+	INT ray_color(GzRay& r, GzColor result);
+
 };
 #endif

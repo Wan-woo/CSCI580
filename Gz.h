@@ -111,5 +111,13 @@ typedef	struct {
 #define GZ_PIXEL
 #endif;
 
+#ifndef GZ_RAY
+typedef struct {
+	GzCoord origin;
+	GzCoord direction;
+} GzRay;
+#define GZ_RAY
+#endif; 
+
 #define	MAXXRES	1024	/* put some bounds on size in case of error */
 #define	MAXYRES	1024
