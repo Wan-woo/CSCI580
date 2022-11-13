@@ -15,7 +15,6 @@
 #define Z	2
 #endif
 GzMatrix IDENTIFY = { { 1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1} };
-GzCoord triNorm[3];
 GzTextureIndex uv[2];
 GzCoord E = { 0, 0, -1 };
 
@@ -552,6 +551,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 	-- Invoke the rastrizer/scanline framework
 	-- Return error code
 	*/
+	GzCoord triNorm[3];
 	for (int i = 0; i < numParts; i++)
 	{
 		switch (nameList[i])
@@ -577,7 +577,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 				float Vz = triCoord[coord][2] / (INT_MAX - triCoord[coord][2]);
 				uv[coord][0] /= (Vz + 1);
 				uv[coord][1] /= (Vz + 1);
-
 			}
 
 			//sort
@@ -614,7 +613,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 						trianglebuffer[triIndex].imageVerts[j][k] = imageCoord[j][k];
 					}
 				}
-				triIndex++;
 			}
 			break;
 		}
@@ -633,6 +631,14 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 			for (int coord = 0; coord < 3; coord++)
 			{
 				transform(Xnorm[matlevel], triNorm[coord], triNorm[coord]);
+			}
+
+			for (int j = 0; j < 3; j++)
+			{
+				for (int k = 0; k < 3; k++)
+				{
+					trianglebuffer[triIndex].normals[j][k] = triNorm[j][k];
+				}
 			}
 
 			break;
@@ -663,6 +669,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 			break;
 		}
 	}
+
+	//get ready for next triangle
+	triIndex++;
 
 
 
@@ -775,12 +784,13 @@ int GzRender::RayIntersection(GzTri triangle)
 
 int GzRender::Rasterize(GzTri triangle)
 {
-	GzCoord triCoord[3];
+	GzCoord triCoord[3], triNorm[3];
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
 			triCoord[i][j] = triangle.vertices[i][j];
+			triNorm[i][j] = triangle.normals[i][j];
 		}
 	}
 
@@ -803,7 +813,6 @@ int GzRender::Rasterize(GzTri triangle)
 		}
 		for (int vertex = 0; vertex < 3; vertex++)// for every vertex
 		{
-
 			computeColor(triNorm[vertex], vertexRGB[vertex]);
 		}
 
