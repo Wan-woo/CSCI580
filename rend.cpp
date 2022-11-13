@@ -212,6 +212,7 @@ int GzRender::GzDefault()
 			for (int k = 0; k < 3; k++)
 			{
 				trianglebuffer[triIndex].vertices[j][k] = 0;
+				trianglebuffer[triIndex].imageVerts[j][k] = 0;
 			}
 		}
 	}
@@ -598,19 +599,23 @@ int GzRender::GzPutTriangle(int numParts, GzToken* nameList, GzPointer* valueLis
 			}
 
 			//trianglebuffer
-			GzCoord imageCoord[3];
-			for (int coord = 0; coord < 3; coord++)
+			if (triIndex < MAX_TRIANGLES)
 			{
-				transform(Xnorm[matlevel], rawCoord[coord], imageCoord[coord]);
-			}
-			for (int j = 0; j < 3; j++)
-			{
-				for (int k = 0; k < 3; k++)
+				GzCoord imageCoord[3];
+				for (int coord = 0; coord < 3; coord++)
 				{
-					trianglebuffer[triIndex].vertices[j][k] = imageCoord[j][k];
+					transform(Xnorm[matlevel], rawCoord[coord], imageCoord[coord]);
 				}
+				for (int j = 0; j < 3; j++)
+				{
+					for (int k = 0; k < 3; k++)
+					{
+						trianglebuffer[triIndex].vertices[j][k] = triCoord[j][k];
+						trianglebuffer[triIndex].imageVerts[j][k] = imageCoord[j][k];
+					}
+				}
+				triIndex++;
 			}
-			triIndex++;
 			break;
 		}
 
@@ -676,9 +681,14 @@ int GzRender::GzRaytracing()
 		GzTri tri = trianglebuffer[i];
 
 		//compute triangle center and then ray direction to it
-		ray.direction[0] = (tri.vertices[0][X]+ tri.vertices[1][X] + tri.vertices[2][X]) / 3.0 - ray.origin[X];
+		/*ray.direction[0] = (tri.vertices[0][X]+ tri.vertices[1][X] + tri.vertices[2][X]) / 3.0 - ray.origin[X];
 		ray.direction[1] = (tri.vertices[0][Y] + tri.vertices[1][Y] + tri.vertices[2][Y]) / 3.0 - ray.origin[Y];
-		ray.direction[2] = (tri.vertices[0][Z] + tri.vertices[1][Z] + tri.vertices[2][Z]) / 3.0 - ray.origin[Z];
+		ray.direction[2] = (tri.vertices[0][Z] + tri.vertices[1][Z] + tri.vertices[2][Z]) / 3.0 - ray.origin[Z];*/
+		GzCoord centroid;
+		centroid[X] = ((tri.imageVerts[0][X] + tri.imageVerts[1][X] + tri.imageVerts[2][X]) / 3.0);
+		centroid[Y] = ((tri.imageVerts[0][Y] + tri.imageVerts[1][Y] + tri.imageVerts[2][Y]) / 3.0);
+		centroid[Z] = ((tri.imageVerts[0][Z] + tri.imageVerts[1][Z] + tri.imageVerts[2][Z]) / 3.0);
+		minus(centroid, ray.origin, ray.direction);
 		normalize(ray.direction, ray.direction);
 
 		//shoot ray through pixels in triangle
@@ -713,9 +723,9 @@ int GzRender::RayIntersection(GzTri triangle)
 {
 	//compute triangle (plane) normal using: crossProduct(1, 2, result)
 	GzCoord edge1, edge2, edge3;
-	minus(triangle.vertices[1], triangle.vertices[0], edge1);
-	minus(triangle.vertices[2], triangle.vertices[1], edge2);
-	minus(triangle.vertices[0], triangle.vertices[2], edge3);
+	minus(triangle.imageVerts[1], triangle.imageVerts[0], edge1);
+	minus(triangle.imageVerts[2], triangle.imageVerts[1], edge2);
+	minus(triangle.imageVerts[0], triangle.imageVerts[2], edge3);
 
 	GzCoord planeNorm;
 	crossProduct(edge1, edge2, planeNorm);
@@ -730,8 +740,9 @@ int GzRender::RayIntersection(GzTri triangle)
 	}
 
 	//compute D then t, ensure t >= 0
-	float dCoeff = dotProduct(planeNorm, triangle.vertices[0]);
-	float tValue = -1 * (dotProduct(planeNorm, ray.origin) + dCoeff) / dotProduct(planeNorm, ray.direction);
+	//float t = - (dot(N, orig) + D) / dot(N, dir); 
+	float dCoeff = dotProduct(planeNorm, triangle.imageVerts[2]);
+	float tValue = (dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
 	if (tValue < 0)
 	{
 		//no intersection
@@ -742,19 +753,19 @@ int GzRender::RayIntersection(GzTri triangle)
 	GzCoord Pvalue, coord1, coord2, coord3, cross1, cross2, cross3;
 	PointAtTValue(tValue, Pvalue);
 
-	minus(Pvalue, edge1, coord1);
-	minus(Pvalue, edge2, coord2);
-	minus(Pvalue, edge3, coord3);
+	minus(Pvalue, triangle.imageVerts[0], coord1);
+	minus(Pvalue, triangle.imageVerts[1], coord2);
+	minus(Pvalue, triangle.imageVerts[2], coord3);
 	crossProduct(edge1, coord1, cross1);
 	crossProduct(edge2, coord2, cross2);
 	crossProduct(edge3, coord3, cross3);
 	
 	float dot1, dot2, dot3;
-	dot1 = dotProduct(planeNorm, cross1);
-	dot2 = dotProduct(planeNorm, cross2);
-	dot3 = dotProduct(planeNorm, cross3);
+	dot1 = dotProduct(cross1, planeNorm);
+	dot2 = dotProduct(cross2, planeNorm);
+	dot3 = dotProduct(cross3, planeNorm);
 
-	if (dot1 > 0 && dot2>0 && dot3>0)
+	if (dot1 > 0 && dot2 > 0 && dot3 > 0)
 	{
 		return GZ_SUCCESS;	 //ray hits triangle :)
 	}

@@ -118,6 +118,7 @@ typedef	struct {
 #ifndef GZ_TRIANGLE
 typedef struct {
 	GzCoord vertices[3];
+	GzCoord imageVerts[3];
 } GzTri;
 #define GZ_TRIANGLE
 #endif;
