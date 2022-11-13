@@ -740,7 +740,7 @@ int GzRender::RayIntersection(GzTri triangle)
 	}
 
 	//compute D then t, ensure t >= 0
-	//float t = - (dot(N, orig) + D) / dot(N, dir); 
+	//float t = (D - dot(N, orig)) / dot(N, dir); 
 	float dCoeff = dotProduct(planeNorm, triangle.imageVerts[2]);
 	float tValue = (dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
 	if (tValue < 0)
