@@ -144,6 +144,7 @@ int GzRender::GzDefault()
 		{
 			for (int k = 0; k < 3; k++)
 			{
+				trianglebuffer[triIndex].rawVert[j][k] = 0;
 				trianglebuffer[triIndex].vertices[j][k] = 0;
 				trianglebuffer[triIndex].imageVerts[j][k] = 0;
 			}
@@ -653,7 +654,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 -- invoke triangle rasterizer  
 */
 	GzCoord colors[3];
-	GzCoord norms[3];
 	GzTextureIndex uvList[3];
 	if (nameList[0] == GZ_NULL_TOKEN)
 	{
@@ -662,11 +662,12 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	if (nameList[2] == GZ_TEXTURE_INDEX)
 	{
 		memcpy((void*)uvList, (void*)valueList[2], sizeof(GzTextureIndex) * 3);
-		for (int i = 0; i < 3; i++)
+
+		for (int j = 0; j < 3; j++)
 		{
-			for (int j = 0; j < 2; j++)
+			for (int k = 0; k < 3; k++)
 			{
-				trianglebuffer[triIndex].uv[i][j] = uvList[i][j];
+				trianglebuffer[triIndex].uv[j][k] = uvList[j][k];
 			}
 		}
 	}
@@ -678,6 +679,15 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		GzComputeCoord(Xnorm[matlevel - 1], temp[0], coord0);
 		GzComputeCoord(Xnorm[matlevel - 1], temp[1], coord1);
 		GzComputeCoord(Xnorm[matlevel - 1], temp[2], coord2);
+
+		//save transformed norms to triangle buffer
+		for (int i = 0; i < 3; i++)
+		{
+			trianglebuffer[triIndex].normals[0][i] = coord0[i];
+			trianglebuffer[triIndex].normals[1][i] = coord1[i];
+			trianglebuffer[triIndex].normals[2][i] = coord2[i];
+		}
+
 		if (interp_mode == GZ_FLAT)
 		{
 			// choose first norm coord0
@@ -690,34 +700,27 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			memcpy((void*)Ka, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Kd, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Ks, (void*)K_temp, sizeof(GzCoord));
-			GzComputeColor(coord0, colors[0]);
-			GzComputeColor(coord1, colors[1]);
-			GzComputeColor(coord2, colors[2]);
+			GzComputeColor(coord0, trianglebuffer[triIndex].colors[0]);
+			GzComputeColor(coord1, trianglebuffer[triIndex].colors[1]);
+			GzComputeColor(coord2, trianglebuffer[triIndex].colors[2]);
 		}
-		else if (interp_mode == GZ_NORMALS)
+		/*else if (interp_mode == GZ_NORMALS)
 		{
 			memcpy((void*)norms[0], (void*)coord0, sizeof(GzCoord));
 			memcpy((void*)norms[1], (void*)coord1, sizeof(GzCoord));
 			memcpy((void*)norms[2], (void*)coord2, sizeof(GzCoord));
-		}
-
-		//save transformed norms to triangle buffer
-		for (int i = 0; i < 3; i++)
-		{
-			trianglebuffer[triIndex].normals[0][i] = coord0[i];
-			trianglebuffer[triIndex].normals[1][i] = coord1[i];
-			trianglebuffer[triIndex].normals[2][i] = coord2[i];
-		}
+		}*/
 	}
 	if (nameList[0] == GZ_POSITION)
 	{
 		GzCoord temp[3];
 		memcpy((void*)temp, (void*)valueList[0], sizeof(GzCoord) * 3);
-		GzCoord coord0, coord1, coord2;
 
+		GzCoord coord0, coord1, coord2;
 		GzComputeCoord(Ximage[matlevel - 1], temp[0], coord0);
 		GzComputeCoord(Ximage[matlevel - 1], temp[1], coord1);
-		GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);		
+		GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);
+		
 		GzCoord vertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
 			{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
 			{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
@@ -729,20 +732,20 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
 			{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
 
-		//save screen and image verts to triangle buffer
+		//save verts to triangle buffer
 		for (int j = 0; j < 3; j++)
 		{
 			for (int k = 0; k < 3; k++)
 			{
+				trianglebuffer[triIndex].rawVert[j][k] = temp[j][k];
 				trianglebuffer[triIndex].vertices[j][k] = vertices[j][k];
 				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
 			}
-		}
+		}		
 	}
 
-	//increment triangle index
 	triIndex++;
-
+	
 	return GZ_SUCCESS;
 }
 
@@ -847,15 +850,14 @@ int GzRender::RayIntersection(GzTri triangle)
 
 int GzRender::Rasterize(GzTri triangle)
 {
-	GzCoord colors[3];
-	GzCoord norms[3];
-	GzCoord temp[3];
+	GzCoord norms[3], vertices[3], temp[3];
 	GzTextureIndex uvList[3];
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
 			temp[i][j] = triangle.vertices[i][j];
+			vertices[i][j] = triangle.vertices[i][j];
 			norms[i][j] = triangle.normals[i][j];
 		}
 		for (int k = 0; k < 2; k++)
@@ -865,25 +867,12 @@ int GzRender::Rasterize(GzTri triangle)
 	}
 
 	edge edges[3];
-	GzCoord coord0, coord1, coord2;
-	GzComputeCoord(Ximage[matlevel - 1], temp[0], coord0);
-	GzComputeCoord(Ximage[matlevel - 1], temp[1], coord1);
-	GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);
-
-	GzCoord vertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
-		{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
-		{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
-
-
 	GzCoord coeff[3] = { {uvList[0][0] / (vertices[0][2] + 1), uvList[0][1] / (vertices[0][2] + 1), 1},
 			{uvList[1][0] / (vertices[1][2] + 1), uvList[1][1] / (vertices[1][2] + 1), 1},
 			{uvList[2][0] / (vertices[2][2] + 1), uvList[2][1] / (vertices[2][2] + 1), 1} };
 	float uv_plane[2][4];
 	GzComputePlane(vertices, coeff, uv_plane);
 
-	memcpy((void*)temp[0], (void*)coord0, sizeof(GzCoord));
-	memcpy((void*)temp[1], (void*)coord1, sizeof(GzCoord));
-	memcpy((void*)temp[2], (void*)coord2, sizeof(GzCoord));
 	// Given first point as A, second as B, third as C, and try to compute AB, AC
 	// first try to find CCW of vertexs compute (A,B) (A,C)
 	int clock = checkCCW(temp[1][0] - temp[0][0], temp[1][1] - temp[0][1], temp[2][0] - temp[0][0], temp[2][1] - temp[0][1]);
@@ -891,7 +880,7 @@ int GzRender::Rasterize(GzTri triangle)
 	{
 		return GZ_SUCCESS;
 	}
-	if (clock == 1) //CCW
+	if (clock == 1)
 	{
 		edges[0].from = 0;
 		edges[0].to = 1;
@@ -900,7 +889,7 @@ int GzRender::Rasterize(GzTri triangle)
 		edges[2].from = 2;
 		edges[2].to = 0;
 	}
-	else if (clock == 2) //CW
+	else if (clock == 2)
 	{
 		edges[0].from = 0;
 		edges[0].to = 2;
@@ -909,7 +898,6 @@ int GzRender::Rasterize(GzTri triangle)
 		edges[2].from = 2;
 		edges[2].to = 1;
 	}
-
 	// try to compute coeffcient
 	for (int i = 0; i < 3; i++)
 	{
@@ -929,7 +917,7 @@ int GzRender::Rasterize(GzTri triangle)
 
 	if (interp_mode == GZ_COLOR)
 	{
-		GzComputePlane(temp, colors);
+		GzComputePlane(temp, trianglebuffer[triIndex].colors);
 	}
 	else if (interp_mode == GZ_NORMALS)
 	{
@@ -982,4 +970,6 @@ int GzRender::Rasterize(GzTri triangle)
 			}
 		}
 	}
+
+	return GZ_SUCCESS;
 }

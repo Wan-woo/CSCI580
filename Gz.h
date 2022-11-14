@@ -116,10 +116,12 @@ typedef	struct {
 
 #ifndef GZ_TRIANGLE
 typedef struct {
+	GzCoord rawVert[3];
 	GzCoord vertices[3];
 	GzCoord imageVerts[3];
 	GzCoord normals[3];
 	GzTextureIndex uv[3];
+	GzColor colors[3];
 } GzTri;
 #define GZ_TRIANGLE
 #endif;
