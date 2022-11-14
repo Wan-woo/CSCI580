@@ -144,7 +144,6 @@ int GzRender::GzDefault()
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				trianglebuffer[triIndex].rawVert[j][k] = 0;
 				trianglebuffer[triIndex].vertices[j][k] = 0;
 				trianglebuffer[triIndex].imageVerts[j][k] = 0;
 			}
@@ -721,10 +720,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		GzComputeCoord(Ximage[matlevel - 1], temp[0], coord0);
 		GzComputeCoord(Ximage[matlevel - 1], temp[1], coord1);
 		GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);
-
-		GzCoord vertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
-			{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
-			{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
 		
 		GzCoord imagevertices[3];
 		GzComputeCoord(Xnorm[matlevel - 1], temp[0], imagevertices[0]);
@@ -740,8 +735,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				trianglebuffer[triIndex].rawVert[j][k] = screen[j][k];
-				trianglebuffer[triIndex].vertices[j][k] = vertices[j][k];
+				trianglebuffer[triIndex].vertices[j][k] = screen[j][k];
 				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
 			}
 		}		
@@ -853,14 +847,13 @@ int GzRender::RayIntersection(GzTri triangle)
 
 int GzRender::Rasterize(GzTri triangle)
 {
-	GzCoord norms[3], vertices[3], temp[3];
+	GzCoord norms[3], temp[3];
 	GzTextureIndex uvList[3];
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			temp[i][j] = triangle.rawVert[i][j];
-			vertices[i][j] = triangle.vertices[i][j];
+			temp[i][j] = triangle.vertices[i][j];
 			norms[i][j] = triangle.normals[i][j];
 		}
 		for (int k = 0; k < 2; k++)
@@ -870,6 +863,15 @@ int GzRender::Rasterize(GzTri triangle)
 	}
 
 	edge edges[3];
+	GzCoord coord0, coord1, coord2;
+	memcpy((void*)coord0, (void*)temp[0], sizeof(GzCoord));
+	memcpy((void*)coord1, (void*)temp[1], sizeof(GzCoord));
+	memcpy((void*)coord2, (void*)temp[2], sizeof(GzCoord));
+
+	GzCoord vertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
+		{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
+		{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
+
 	GzCoord coeff[3] = { {uvList[0][0] / (vertices[0][2] + 1), uvList[0][1] / (vertices[0][2] + 1), 1},
 			{uvList[1][0] / (vertices[1][2] + 1), uvList[1][1] / (vertices[1][2] + 1), 1},
 			{uvList[2][0] / (vertices[2][2] + 1), uvList[2][1] / (vertices[2][2] + 1), 1} };

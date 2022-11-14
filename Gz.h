@@ -116,7 +116,6 @@ typedef	struct {
 
 #ifndef GZ_TRIANGLE
 typedef struct {
-	GzCoord rawVert[3];
 	GzCoord vertices[3];
 	GzCoord imageVerts[3];
 	GzCoord normals[3];
