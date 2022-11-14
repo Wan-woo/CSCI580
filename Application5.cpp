@@ -98,7 +98,7 @@ GzMatrix	rotateY =
 	0.0,	0.0,	0.0,	1.0 
 }; 
 
-#if 1 	/* set up app-defined camera if desired, else use camera defaults */
+#if 0 	/* set up app-defined camera if desired, else use camera defaults */
     camera.position[X] = -3;
     camera.position[Y] = -25;
     camera.position[Z] = -4;
@@ -261,7 +261,10 @@ int Application5::Render()
 		 valueListTriangle[1] = (GzPointer)normalList; 
 		 valueListTriangle[2] = (GzPointer)uvList; 
 		 m_pRender->GzPutTriangle(3, nameListTriangle, valueListTriangle); 
-	} 
+	}
+
+	//NOW MAKE IT DO RAYTRACE
+	m_pRender->GzRaytracing();
 
 	m_pRender->GzFlushDisplay2File(outfile); 	/* write out or update display to file*/
 	m_pRender->GzFlushDisplay2FrameBuffer();	// write out or update display to frame buffer
