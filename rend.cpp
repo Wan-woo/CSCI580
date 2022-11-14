@@ -713,31 +713,34 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	}
 	if (nameList[0] == GZ_POSITION)
 	{
+		edge edges[3];
 		GzCoord temp[3];
 		memcpy((void*)temp, (void*)valueList[0], sizeof(GzCoord) * 3);
-
+		
 		GzCoord coord0, coord1, coord2;
 		GzComputeCoord(Ximage[matlevel - 1], temp[0], coord0);
 		GzComputeCoord(Ximage[matlevel - 1], temp[1], coord1);
 		GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);
-		
+
 		GzCoord vertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
 			{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
 			{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
+		
+		GzCoord imagevertices[3];
+		GzComputeCoord(Xnorm[matlevel - 1], temp[0], imagevertices[0]);
+		GzComputeCoord(Xnorm[matlevel - 1], temp[1], imagevertices[1]);
+		GzComputeCoord(Xnorm[matlevel - 1], temp[2], imagevertices[2]);
 
-		GzComputeCoord(Xnorm[matlevel - 1], temp[0], coord0);
-		GzComputeCoord(Xnorm[matlevel - 1], temp[1], coord1);
-		GzComputeCoord(Xnorm[matlevel - 1], temp[2], coord2);
-		GzCoord imagevertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
-			{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
-			{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
+		GzCoord screen[3] = { {coord0[0], coord0[1],  coord0[2]}, 
+			{coord1[0], coord1[1],  coord1[2]}, 
+			{coord2[0], coord2[1],  coord2[2]} };
 
 		//save verts to triangle buffer
 		for (int j = 0; j < 3; j++)
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				trianglebuffer[triIndex].rawVert[j][k] = temp[j][k];
+				trianglebuffer[triIndex].rawVert[j][k] = screen[j][k];
 				trianglebuffer[triIndex].vertices[j][k] = vertices[j][k];
 				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
 			}
@@ -856,7 +859,7 @@ int GzRender::Rasterize(GzTri triangle)
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			temp[i][j] = triangle.vertices[i][j];
+			temp[i][j] = triangle.rawVert[i][j];
 			vertices[i][j] = triangle.vertices[i][j];
 			norms[i][j] = triangle.normals[i][j];
 		}
