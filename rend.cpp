@@ -692,7 +692,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		{
 			// choose first norm coord0
 			GzCoord coord = { coord0[0], coord0[1], coord0[2] };
-			GzComputeColor(coord, flatcolor);
+			GzComputeColor(coord, trianglebuffer[triIndex].colors[0]);
 		}
 		else if (interp_mode == GZ_COLOR)
 		{
@@ -965,6 +965,12 @@ int GzRender::Rasterize(GzTri triangle)
 					temp_norm[1] = temp_norm[1] / d;
 					temp_norm[2] = temp_norm[2] / d;
 					GzComputeColor(temp_norm, flatcolor);
+				}
+				else if (interp_mode == GZ_FLAT)
+				{
+					flatcolor[RED] = triangle.colors[0][RED];
+					flatcolor[GREEN] = triangle.colors[0][GREEN];
+					flatcolor[BLUE] = triangle.colors[0][BLUE];
 				}
 				this->GzPut(i, j, ctoi(flatcolor[0]), ctoi(flatcolor[1]), ctoi(flatcolor[2]), 255, ceil(z));
 			}
