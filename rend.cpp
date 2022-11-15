@@ -92,6 +92,8 @@ GzRender::GzRender(int xRes, int yRes)
 	numlights = 0;
 	framebuffer = (char*) malloc (3 * sizeof(char) * xRes * yRes);
 	pixelbuffer = new GzPixel[xres * yres];
+	trianglebuffer = new GzTri[MAX_TRIANGLES];
+	triIndex = 0;
 
 /* HW 3.6
 - setup Xsp and anything only done once 
@@ -133,6 +135,22 @@ int GzRender::GzDefault()
 			pixelbuffer[j * xres + i].blue = 4095;
 			pixelbuffer[j * xres + i].green = 1128;
 			pixelbuffer[j * xres + i].z = 2147483647;
+		}
+	}
+
+	for (int i = 0; i < MAX_TRIANGLES; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				trianglebuffer[triIndex].vertices[j][k] = 0;
+				trianglebuffer[triIndex].imageVerts[j][k] = 0;
+			}
+			for (int k = 0; k < 2; k++)
+			{
+				trianglebuffer[triIndex].uv[j][k] = 0;
+			}
 		}
 	}
 	return GZ_SUCCESS;
@@ -635,7 +653,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 -- invoke triangle rasterizer  
 */
 	GzCoord colors[3];
-	GzCoord norms[3];
 	GzTextureIndex uvList[3];
 	if (nameList[0] == GZ_NULL_TOKEN)
 	{
@@ -644,6 +661,14 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	if (nameList[2] == GZ_TEXTURE_INDEX)
 	{
 		memcpy((void*)uvList, (void*)valueList[2], sizeof(GzTextureIndex) * 3);
+
+		for (int j = 0; j < 3; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				trianglebuffer[triIndex].uv[j][k] = uvList[j][k];
+			}
+		}
 	}
 	if (nameList[1] == GZ_NORMAL)
 	{
@@ -653,11 +678,20 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		GzComputeCoord(Xnorm[matlevel - 1], temp[0], coord0);
 		GzComputeCoord(Xnorm[matlevel - 1], temp[1], coord1);
 		GzComputeCoord(Xnorm[matlevel - 1], temp[2], coord2);
+
+		//save transformed norms to triangle buffer
+		for (int i = 0; i < 3; i++)
+		{
+			trianglebuffer[triIndex].normals[0][i] = coord0[i];
+			trianglebuffer[triIndex].normals[1][i] = coord1[i];
+			trianglebuffer[triIndex].normals[2][i] = coord2[i];
+		}
+
 		if (interp_mode == GZ_FLAT)
 		{
 			// choose first norm coord0
 			GzCoord coord = { coord0[0], coord0[1], coord0[2] };
-			GzComputeColor(coord, flatcolor);
+			GzComputeColor(coord, trianglebuffer[triIndex].colors[0]);
 		}
 		else if (interp_mode == GZ_COLOR)
 		{
@@ -665,141 +699,288 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			memcpy((void*)Ka, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Kd, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Ks, (void*)K_temp, sizeof(GzCoord));
-			GzComputeColor(coord0, colors[0]);
-			GzComputeColor(coord1, colors[1]);
-			GzComputeColor(coord2, colors[2]);
+			GzComputeColor(coord0, trianglebuffer[triIndex].colors[0]);
+			GzComputeColor(coord1, trianglebuffer[triIndex].colors[1]);
+			GzComputeColor(coord2, trianglebuffer[triIndex].colors[2]);
 		}
-		else if (interp_mode == GZ_NORMALS)
+		/*else if (interp_mode == GZ_NORMALS)
 		{
 			memcpy((void*)norms[0], (void*)coord0, sizeof(GzCoord));
 			memcpy((void*)norms[1], (void*)coord1, sizeof(GzCoord));
 			memcpy((void*)norms[2], (void*)coord2, sizeof(GzCoord));
-		}
+		}*/
 	}
 	if (nameList[0] == GZ_POSITION)
 	{
 		edge edges[3];
 		GzCoord temp[3];
 		memcpy((void*)temp, (void*)valueList[0], sizeof(GzCoord) * 3);
+		
 		GzCoord coord0, coord1, coord2;
 		GzComputeCoord(Ximage[matlevel - 1], temp[0], coord0);
 		GzComputeCoord(Ximage[matlevel - 1], temp[1], coord1);
 		GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);
-		//use coord0[2] coord1[2] coord2[2] to compute u,v in perspective space
-		/*GzCoord vertices[3] = {{(coord0[0] - xres / 2) / (xres / 2), (coord0[1] - yres / 2) / (-yres / 2), coord0[2] / (MAXINT - coord0[2])},
-			{(coord1[0] - xres / 2) / (xres / 2), (coord1[1] - yres / 2) / (-yres / 2), coord1[2] / (MAXINT - coord1[2])},
-			{(coord2[0] - xres / 2) / (xres / 2), (coord2[1] - yres / 2) / (-yres / 2), coord2[2] / (MAXINT - coord2[2])} };
-		*/
-		GzCoord vertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
-			{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
-			{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
-		GzCoord coeff[3] = { {uvList[0][0] / (vertices[0][2] + 1), uvList[0][1] / (vertices[0][2] + 1), 1},
-			{uvList[1][0] / (vertices[1][2] + 1), uvList[1][1] / (vertices[1][2] + 1), 1},
-			{uvList[2][0] / (vertices[2][2] + 1), uvList[2][1] / (vertices[2][2] + 1), 1} };
-		float uv_plane[2][4];
-		GzComputePlane(vertices, coeff, uv_plane);
+		
+		GzCoord imagevertices[3];
+		GzComputeCoord(Xnorm[matlevel - 1], temp[0], imagevertices[0]);
+		GzComputeCoord(Xnorm[matlevel - 1], temp[1], imagevertices[1]);
+		GzComputeCoord(Xnorm[matlevel - 1], temp[2], imagevertices[2]);
 
-		memcpy((void*)temp[0], (void*)coord0, sizeof(GzCoord));
-		memcpy((void*)temp[1], (void*)coord1, sizeof(GzCoord));
-		memcpy((void*)temp[2], (void*)coord2, sizeof(GzCoord));
-		// Given first point as A, second as B, third as C, and try to compute AB, AC
-		// first try to find CCW of vertexs compute (A,B) (A,C)
-		int clock = checkCCW(temp[1][0] - temp[0][0], temp[1][1] - temp[0][1], temp[2][0] - temp[0][0], temp[2][1] - temp[0][1]);
-		if (!clock)
-		{
-			return GZ_SUCCESS;
-		}
-		if (clock == 1)
-		{
-			edges[0].from = 0;
-			edges[0].to = 1;
-			edges[1].from = 1;
-			edges[1].to = 2;
-			edges[2].from = 2;
-			edges[2].to = 0;
-		}
-		else if (clock == 2)
-		{
-			edges[0].from = 0;
-			edges[0].to = 2;
-			edges[1].from = 1;
-			edges[1].to = 0;
-			edges[2].from = 2;
-			edges[2].to = 1;
-		}
-		// try to compute coeffcient
-		for (int i = 0; i < 3; i++)
-		{
-			int from = edges[i].from;
-			int to = edges[i].to;
-			computeCoeffcient(temp[to][0], temp[to][1], temp[from][0] - temp[to][0], temp[from][1] - temp[to][1], edges[i].A, edges[i].B, edges[i].C);
-		}
-		// try to compute global plane normal
-		float Az, Bz, Cz, Dz;
-		float a1 = temp[1][0] - temp[0][0];
-		float b1 = temp[1][1] - temp[0][1];
-		float c1 = temp[1][2] - temp[0][2];
-		float a2 = temp[2][0] - temp[0][0];
-		float b2 = temp[2][1] - temp[0][1];
-		float c2 = temp[2][2] - temp[0][2];
-		computePlane(temp[0][0], temp[0][1], temp[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
+		GzCoord screen[3] = { {coord0[0], coord0[1],  coord0[2]}, 
+			{coord1[0], coord1[1],  coord1[2]}, 
+			{coord2[0], coord2[1],  coord2[2]} };
 
-		if (interp_mode == GZ_COLOR)
+		//save verts to triangle buffer
+		for (int j = 0; j < 3; j++)
 		{
-			GzComputePlane(temp, colors);
-		}
-		else if (interp_mode == GZ_NORMALS)
-		{
-			GzComputePlane(temp, norms);
-		}
-
-		// try to find the left edge when same y, if bottom, renders the bottom line and left line; if top, renders the left line;
-		checkLeft(temp[0][0], temp[0][1], temp[1][0], temp[1][1], temp[2][0], temp[2][1], edges);
-		// try to render the points inside the triangle
-		int boundLeft, boundRight, boundUp, boundDown;
-		boundLeft = minimum(temp[0][0], temp[1][0], temp[2][0]);
-		boundRight = maximum(temp[0][0], temp[1][0], temp[2][0]);
-		boundDown = minimum(temp[0][1], temp[1][1], temp[2][1]);
-		boundUp = maximum(temp[0][1], temp[1][1], temp[2][1]);
-		for (int i = ceil(boundLeft); i <= floor(boundRight); i++)
-		{
-			for (int j = ceil(boundDown); j <= floor(boundUp); j++)
+			for (int k = 0; k < 3; k++)
 			{
-				if (isInside(i, j, edges))
-				{
-					float z = (-Az * i - Bz * j - Dz) / Cz;
-					float x = i;//(i - xres / 2) / (xres / 2);
-					float y = j;//(j - yres / 2) / (-yres / 2);
-					float u = (-uv_plane[0][0] * x - uv_plane[0][1] * y - uv_plane[0][3]) / uv_plane[0][2];
-					float v = (-uv_plane[1][0] * x - uv_plane[1][1] * y - uv_plane[1][3]) / uv_plane[1][2];
-					float z_prime = z / (MAXINT - z);
-					GzColor normColor;
-					tex_fun(u* (z_prime + 1), v* (z_prime + 1), normColor);
-					if (interp_mode == GZ_COLOR)
-					{
-						flatcolor[0] = normColor[0] * (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
-						flatcolor[1] = normColor[1] * (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
-						flatcolor[2] = normColor[2] * (-planes[2][0] * i - planes[2][1] * j - planes[2][3]) / planes[2][2];
-					}
-					else if (interp_mode == GZ_NORMALS)
-					{
-						memcpy((void*)Kd, (void*)normColor, sizeof(GzColor));
-						memcpy((void*)Ka, (void*)normColor, sizeof(GzColor));
-						GzCoord temp_norm;
-						temp_norm[0] = (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
-						temp_norm[1] = (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
-						temp_norm[2] = (-planes[2][0] * i - planes[2][1] * j - planes[2][3]) / planes[2][2];
-						float d = GzCoordLength(temp_norm);
-						temp_norm[0] = temp_norm[0] / d;
-						temp_norm[1] = temp_norm[1] / d;
-						temp_norm[2] = temp_norm[2] / d;
-						GzComputeColor(temp_norm, flatcolor);
-					}
-					this->GzPut(i, j, ctoi(flatcolor[0]), ctoi(flatcolor[1]), ctoi(flatcolor[2]), 255, ceil(z));
-				}
+				trianglebuffer[triIndex].vertices[j][k] = screen[j][k];
+				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
 			}
+		}		
+	}
+
+	triIndex++;
+	
+	return GZ_SUCCESS;
+}
+
+int GzRender::GzRaytracing()
+{
+	ray.origin[X] = m_camera.position[X];
+	ray.origin[Y] = m_camera.position[Y];
+	ray.origin[Z] = m_camera.position[Z];
+
+	for (int i = 0; i < triIndex; i++)
+	{
+		GzTri tri = trianglebuffer[i];
+
+		GzCoord centroid;
+		centroid[X] = ((tri.imageVerts[0][X] + tri.imageVerts[1][X] + tri.imageVerts[2][X]) / 3.0);
+		centroid[Y] = ((tri.imageVerts[0][Y] + tri.imageVerts[1][Y] + tri.imageVerts[2][Y]) / 3.0);
+		centroid[Z] = ((tri.imageVerts[0][Z] + tri.imageVerts[1][Z] + tri.imageVerts[2][Z]) / 3.0);
+		minus(centroid, ray.origin, ray.direction);
+		normalize(ray.direction, ray.direction);
+
+		//shoot ray through pixels in triangle
+		int result = RayIntersection(tri);
+
+		//compute colors if hit (we do flat for now)
+		if (result == GZ_FAILURE)
+		{
+			return GZ_FAILURE;
+		}
+		else
+		{
+			Rasterize(tri);
 		}
 	}
 	return GZ_SUCCESS;
 }
 
+int GzRender::PointAtTValue(float t, GzCoord coord)
+{
+	//origin + t * dir
+	GzCoord scaled;
+	for (int i = 0; i < 3; i++)
+	{
+		coord[i] = ray.direction[i] * t + ray.origin[i];
+	}
+
+	return GZ_SUCCESS;
+}
+
+int GzRender::RayIntersection(GzTri triangle)
+{
+	//compute triangle (plane) normal using: crossProduct(1, 2, result)
+	GzCoord edge1, edge2, edge3;
+	minus(triangle.imageVerts[1], triangle.imageVerts[0], edge1);
+	minus(triangle.imageVerts[2], triangle.imageVerts[1], edge2);
+	minus(triangle.imageVerts[0], triangle.imageVerts[2], edge3);
+
+	GzCoord planeNorm;
+	crossProduct(edge1, edge2, planeNorm);
+	normalize(planeNorm, planeNorm);
+
+	//check if ray and triangle are parallel
+	float dir = dotProduct(planeNorm, ray.direction);
+	if (dir == 0)
+	{
+		//no intersection
+		return GZ_FAILURE;
+	}
+
+	//compute D then t, ensure t >= 0
+	//float t = (D - dot(N, orig)) / dot(N, dir); 
+	float dCoeff = dotProduct(planeNorm, triangle.imageVerts[2]);
+	float tValue = (dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
+	if (tValue < 0)
+	{
+		//no intersection
+		return GZ_FAILURE;
+	}
+
+	//check if intersection point is inside triangle
+	GzCoord Pvalue, coord1, coord2, coord3, cross1, cross2, cross3;
+	PointAtTValue(tValue, Pvalue);
+
+	minus(Pvalue, triangle.imageVerts[0], coord1);
+	minus(Pvalue, triangle.imageVerts[1], coord2);
+	minus(Pvalue, triangle.imageVerts[2], coord3);
+	crossProduct(edge1, coord1, cross1);
+	crossProduct(edge2, coord2, cross2);
+	crossProduct(edge3, coord3, cross3);
+
+	float dot1, dot2, dot3;
+	dot1 = dotProduct(cross1, planeNorm);
+	dot2 = dotProduct(cross2, planeNorm);
+	dot3 = dotProduct(cross3, planeNorm);
+
+	if (dot1 > 0 && dot2 > 0 && dot3 > 0)
+	{
+		return GZ_SUCCESS;	 //ray hits triangle :)
+	}
+
+	return GZ_FAILURE;
+}
+
+int GzRender::Rasterize(GzTri triangle)
+{
+	GzCoord norms[3], temp[3];
+	GzTextureIndex uvList[3];
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			temp[i][j] = triangle.vertices[i][j];
+			norms[i][j] = triangle.normals[i][j];
+		}
+		for (int k = 0; k < 2; k++)
+		{
+			uvList[i][k] = triangle.uv[i][k];
+		}
+	}
+
+	edge edges[3];
+	GzCoord coord0, coord1, coord2;
+	memcpy((void*)coord0, (void*)temp[0], sizeof(GzCoord));
+	memcpy((void*)coord1, (void*)temp[1], sizeof(GzCoord));
+	memcpy((void*)coord2, (void*)temp[2], sizeof(GzCoord));
+
+	GzCoord vertices[3] = { {coord0[0],coord0[1], coord0[2] / (MAXINT - coord0[2])},
+		{coord1[0], coord1[1], coord1[2] / (MAXINT - coord1[2])},
+		{coord2[0], coord2[1], coord2[2] / (MAXINT - coord2[2])} };
+
+	GzCoord coeff[3] = { {uvList[0][0] / (vertices[0][2] + 1), uvList[0][1] / (vertices[0][2] + 1), 1},
+			{uvList[1][0] / (vertices[1][2] + 1), uvList[1][1] / (vertices[1][2] + 1), 1},
+			{uvList[2][0] / (vertices[2][2] + 1), uvList[2][1] / (vertices[2][2] + 1), 1} };
+	float uv_plane[2][4];
+	GzComputePlane(vertices, coeff, uv_plane);
+
+	// Given first point as A, second as B, third as C, and try to compute AB, AC
+	// first try to find CCW of vertexs compute (A,B) (A,C)
+	int clock = checkCCW(temp[1][0] - temp[0][0], temp[1][1] - temp[0][1], temp[2][0] - temp[0][0], temp[2][1] - temp[0][1]);
+	if (!clock)
+	{
+		return GZ_SUCCESS;
+	}
+	if (clock == 1)
+	{
+		edges[0].from = 0;
+		edges[0].to = 1;
+		edges[1].from = 1;
+		edges[1].to = 2;
+		edges[2].from = 2;
+		edges[2].to = 0;
+	}
+	else if (clock == 2)
+	{
+		edges[0].from = 0;
+		edges[0].to = 2;
+		edges[1].from = 1;
+		edges[1].to = 0;
+		edges[2].from = 2;
+		edges[2].to = 1;
+	}
+	// try to compute coeffcient
+	for (int i = 0; i < 3; i++)
+	{
+		int from = edges[i].from;
+		int to = edges[i].to;
+		computeCoeffcient(temp[to][0], temp[to][1], temp[from][0] - temp[to][0], temp[from][1] - temp[to][1], edges[i].A, edges[i].B, edges[i].C);
+	}
+	// try to compute global plane normal
+	float Az, Bz, Cz, Dz;
+	float a1 = temp[1][0] - temp[0][0];
+	float b1 = temp[1][1] - temp[0][1];
+	float c1 = temp[1][2] - temp[0][2];
+	float a2 = temp[2][0] - temp[0][0];
+	float b2 = temp[2][1] - temp[0][1];
+	float c2 = temp[2][2] - temp[0][2];
+	computePlane(temp[0][0], temp[0][1], temp[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
+
+	if (interp_mode == GZ_COLOR)
+	{
+		GzComputePlane(temp, trianglebuffer[triIndex].colors);
+	}
+	else if (interp_mode == GZ_NORMALS)
+	{
+		GzComputePlane(temp, norms);
+	}
+
+	// try to find the left edge when same y, if bottom, renders the bottom line and left line; if top, renders the left line;
+	checkLeft(temp[0][0], temp[0][1], temp[1][0], temp[1][1], temp[2][0], temp[2][1], edges);
+	// try to render the points inside the triangle
+	int boundLeft, boundRight, boundUp, boundDown;
+	boundLeft = minimum(temp[0][0], temp[1][0], temp[2][0]);
+	boundRight = maximum(temp[0][0], temp[1][0], temp[2][0]);
+	boundDown = minimum(temp[0][1], temp[1][1], temp[2][1]);
+	boundUp = maximum(temp[0][1], temp[1][1], temp[2][1]);
+	for (int i = ceil(boundLeft); i <= floor(boundRight); i++)
+	{
+		for (int j = ceil(boundDown); j <= floor(boundUp); j++)
+		{
+			if (isInside(i, j, edges))
+			{
+				float z = (-Az * i - Bz * j - Dz) / Cz;
+				float x = i;//(i - xres / 2) / (xres / 2);
+				float y = j;//(j - yres / 2) / (-yres / 2);
+				float u = (-uv_plane[0][0] * x - uv_plane[0][1] * y - uv_plane[0][3]) / uv_plane[0][2];
+				float v = (-uv_plane[1][0] * x - uv_plane[1][1] * y - uv_plane[1][3]) / uv_plane[1][2];
+				float z_prime = z / (MAXINT - z);
+				GzColor normColor;
+				tex_fun(u * (z_prime + 1), v * (z_prime + 1), normColor);
+				if (interp_mode == GZ_COLOR)
+				{
+					flatcolor[0] = normColor[0] * (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
+					flatcolor[1] = normColor[1] * (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
+					flatcolor[2] = normColor[2] * (-planes[2][0] * i - planes[2][1] * j - planes[2][3]) / planes[2][2];
+				}
+				else if (interp_mode == GZ_NORMALS)
+				{
+					memcpy((void*)Kd, (void*)normColor, sizeof(GzColor));
+					memcpy((void*)Ka, (void*)normColor, sizeof(GzColor));
+					GzCoord temp_norm;
+					temp_norm[0] = (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
+					temp_norm[1] = (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
+					temp_norm[2] = (-planes[2][0] * i - planes[2][1] * j - planes[2][3]) / planes[2][2];
+					float d = GzCoordLength(temp_norm);
+					temp_norm[0] = temp_norm[0] / d;
+					temp_norm[1] = temp_norm[1] / d;
+					temp_norm[2] = temp_norm[2] / d;
+					GzComputeColor(temp_norm, flatcolor);
+				}
+				else if (interp_mode == GZ_FLAT)
+				{
+					flatcolor[RED] = triangle.colors[0][RED];
+					flatcolor[GREEN] = triangle.colors[0][GREEN];
+					flatcolor[BLUE] = triangle.colors[0][BLUE];
+				}
+				this->GzPut(i, j, ctoi(flatcolor[0]), ctoi(flatcolor[1]), ctoi(flatcolor[2]), 255, ceil(z));
+			}
+		}
+	}
+
+	return GZ_SUCCESS;
+}

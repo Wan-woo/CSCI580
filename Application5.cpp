@@ -18,7 +18,7 @@ static char THIS_FILE[]=__FILE__;
 #define new DEBUG_NEW
 #endif
 
-#define INFILE  "ppot.asc"
+#define INFILE  "ppot.asc" //"tri.asc" //
 #define OUTFILE "output.ppm"
 
 
@@ -160,7 +160,8 @@ GzMatrix	rotateY =
 	*/
         nameListShader[1]  = GZ_INTERPOLATE;
         //interpStyle = GZ_COLOR;         /* Gouraud shading */
-        interpStyle = GZ_NORMALS;         /* Phong shading */
+        //interpStyle = GZ_NORMALS;         /* Phong shading */
+		interpStyle = GZ_FLAT;
         valueListShader[1] = (GzPointer)&interpStyle;
 
         nameListShader[2]  = GZ_AMBIENT_COEFFICIENT;
@@ -262,6 +263,8 @@ int Application5::Render()
 		 valueListTriangle[2] = (GzPointer)uvList; 
 		 m_pRender->GzPutTriangle(3, nameListTriangle, valueListTriangle); 
 	} 
+
+	m_pRender->GzRaytracing();
 
 	m_pRender->GzFlushDisplay2File(outfile); 	/* write out or update display to file*/
 	m_pRender->GzFlushDisplay2FrameBuffer();	// write out or update display to frame buffer
