@@ -750,19 +750,19 @@ int GzRender::GzRaytracing()
 	for (int i = 0; i < triIndex; i++)
 	{
 		//shoot ray through pixels in triangle
-		int result = ComputeTriangleTValue(&trianglebuffer[i]);
+		int result = CheckTriangleVisibility(&trianglebuffer[i]);
 	}
 
 	for (int i = 0; i < triIndex; i++)
 	{
 		GzTri tri = trianglebuffer[i];
 
-		Rasterize(tri);
+		Rasterize(&tri);
 	}
 	return GZ_SUCCESS;
 }
 
-int GzRender::ComputeTriangleTValue(GzTri* tri)
+int GzRender::CheckTriangleVisibility(GzTri* tri)
 {	
 	GzTri triangle = *tri;
 
@@ -862,8 +862,9 @@ bool GzRender::IsPointInTriangle(GzTri triangle, GzCoord triNorm, GzCoord Pvalue
 	return false;
 }
 
-int GzRender::Rasterize(GzTri triangle)
+int GzRender::Rasterize(GzTri *tri)
 {
+	GzTri triangle = *tri;
 	GzCoord norms[3], temp[3];
 	GzTextureIndex uvList[3];
 	for (int i = 0; i < 3; i++)
@@ -958,7 +959,7 @@ int GzRender::Rasterize(GzTri triangle)
 	{
 		for (int j = ceil(boundDown); j <= floor(boundUp); j++)
 		{
-			if (isInside(i, j, edges) && TValueCheck(i, j, triangle))
+			if (isInside(i, j, edges) && TValueCheck(i, j, tri))
 			{
 				GzTri pixTri = *pixelbuffer[j * xres + i].triangle;
 
@@ -1004,7 +1005,7 @@ int GzRender::Rasterize(GzTri triangle)
 	return GZ_SUCCESS;
 }
 
-bool GzRender::TValueCheck(int x, int y, GzTri triangle)
+bool GzRender::TValueCheck(int x, int y, GzTri* tri)
 {
 	if (!(x >= 0 && x < xres && y >= 0 && y < yres))
 	{
@@ -1013,11 +1014,15 @@ bool GzRender::TValueCheck(int x, int y, GzTri triangle)
 	GzTri* pixTri = pixelbuffer[y * xres + x].triangle;
 	if (pixTri == nullptr)
 	{
-		pixelbuffer[y * xres + x].triangle = &triangle;
+		pixelbuffer[y * xres + x].triangle = tri;
 	}
-	else if (pixTri->tValue > triangle.tValue)
+	else if (pixTri == tri)
 	{
-		pixelbuffer[y * xres + x].triangle = &triangle;
+		return true;
+	}
+	else if (pixTri->tValue > tri->tValue)
+	{
+		pixelbuffer[y * xres + x].triangle = tri;
 	}
 	return true;
 }

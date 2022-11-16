@@ -94,10 +94,10 @@ public:
 	int PointAtTValue(float t, GzCoord coord);
 	int RayIntersection(GzTri* tri);
 	bool IsPointInTriangle(GzTri triangle, GzCoord triNorm, GzCoord point);
-	int Rasterize(GzTri triangle);
-	int ComputeTriangleTValue(GzTri* tri);
+	int Rasterize(GzTri* tri);
+	int CheckTriangleVisibility(GzTri* tri);
 	int TrianglePixel();
-	bool TValueCheck(int x, int y, GzTri triangle);
+	bool TValueCheck(int x, int y, GzTri* tri);
 	bool ShadowCheck(GzCoord pixel);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
