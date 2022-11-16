@@ -8,6 +8,8 @@
 #define GZ_SUCCESS      0
 #define GZ_FAILURE      1
 
+#define	MAX_PIX_TRI	10		/* how many triangles per pixel */
+
 /*
  * name list tokens
  */
@@ -100,20 +102,6 @@ typedef struct  GzInput
 #define V       1
 
 
-#ifndef GZ_PIXEL
-typedef	struct {
-  GzIntensity    red;	
-  GzIntensity    green;
-  GzIntensity    blue;
-  GzIntensity    alpha;
-  GzDepth	 z;
-} GzPixel;
-#define GZ_PIXEL
-#endif;
-
-#define	MAXXRES	1024	/* put some bounds on size in case of error */
-#define	MAXYRES	1024
-
 #ifndef GZ_TRIANGLE
 typedef struct {
 	GzCoord vertices[3];
@@ -121,9 +109,26 @@ typedef struct {
 	GzCoord normals[3];
 	GzTextureIndex uv[3];
 	GzColor colors[3];
+	float tValue;
 } GzTri;
 #define GZ_TRIANGLE
 #endif;
+
+#ifndef GZ_PIXEL
+typedef	struct {
+  GzIntensity    red;	
+  GzIntensity    green;
+  GzIntensity    blue;
+  GzIntensity    alpha;
+  GzDepth	 z;
+  GzTri*		triangle;
+} GzPixel;
+#define GZ_PIXEL
+#endif;
+
+#define	MAXXRES	1024	/* put some bounds on size in case of error */
+#define	MAXYRES	1024
+
 
 #ifndef GZ_RAY
 typedef struct {

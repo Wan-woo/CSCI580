@@ -264,6 +264,7 @@ int Application5::Render()
 		 m_pRender->GzPutTriangle(3, nameListTriangle, valueListTriangle); 
 	} 
 
+	//m_pRender->TrianglePixel();
 	m_pRender->GzRaytracing();
 
 	m_pRender->GzFlushDisplay2File(outfile); 	/* write out or update display to file*/

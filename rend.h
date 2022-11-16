@@ -92,8 +92,13 @@ public:
 	//Ray tracing
 	int GzRaytracing();
 	int PointAtTValue(float t, GzCoord coord);
-	int RayIntersection(GzTri triangle);
+	int RayIntersection(GzTri* tri);
+	bool IsPointInTriangle(GzTri triangle, GzCoord triNorm, GzCoord point);
 	int Rasterize(GzTri triangle);
+	int ComputeTriangleTValue(GzTri* tri);
+	int TrianglePixel();
+	bool TValueCheck(int x, int y, GzTri triangle);
+	bool ShadowCheck(GzCoord pixel);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
 		float res = 0;
