@@ -652,6 +652,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		- optional: test for triangles with all three verts off-screen (trivial frustum cull)
 -- invoke triangle rasterizer  
 */
+	GzTri triangle;
 	GzCoord colors[3];
 	GzTextureIndex uvList[3];
 	if (nameList[0] == GZ_NULL_TOKEN)
@@ -682,16 +683,16 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		//save transformed norms to triangle buffer
 		for (int i = 0; i < 3; i++)
 		{
-			trianglebuffer[triIndex].normals[0][i] = coord0[i];
-			trianglebuffer[triIndex].normals[1][i] = coord1[i];
-			trianglebuffer[triIndex].normals[2][i] = coord2[i];
+			triangle.normals[0][i] = coord0[i];
+			triangle.normals[1][i] = coord1[i];
+			triangle.normals[2][i] = coord2[i];
 		}
 
 		if (interp_mode == GZ_FLAT)
 		{
 			// choose first norm coord0
 			GzCoord coord = { coord0[0], coord0[1], coord0[2] };
-			GzComputeColor(coord, trianglebuffer[triIndex].colors[0]);
+			GzComputeColor(coord, triangle.colors[0]);
 		}
 		else if (interp_mode == GZ_COLOR)
 		{
@@ -699,9 +700,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			memcpy((void*)Ka, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Kd, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Ks, (void*)K_temp, sizeof(GzCoord));
-			GzComputeColor(coord0, trianglebuffer[triIndex].colors[0]);
-			GzComputeColor(coord1, trianglebuffer[triIndex].colors[1]);
-			GzComputeColor(coord2, trianglebuffer[triIndex].colors[2]);
+			GzComputeColor(coord0, triangle.colors[0]);
+			GzComputeColor(coord1, triangle.colors[1]);
+			GzComputeColor(coord2, triangle.colors[2]);
 		}
 		/*else if (interp_mode == GZ_NORMALS)
 		{
@@ -735,11 +736,13 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				trianglebuffer[triIndex].vertices[j][k] = screen[j][k];
-				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
+				triangle.vertices[j][k] = screen[j][k];
+				triangle.imageVerts[j][k] = imagevertices[j][k];
 			}
 		}		
 	}
+
+	memcpy((void*)&trianglebuffer[triIndex], (void*)&triangle, sizeof(GzTri));
 
 	triIndex++;
 	
@@ -983,4 +986,121 @@ int GzRender::Rasterize(GzTri triangle)
 	}
 
 	return GZ_SUCCESS;
+}
+
+int GzRender::AssignTriangleToPixel()
+{
+	//iterate over the pixels
+	for (int i = 0; i < xres; i++)
+	{
+		for (int j = 0; j < yres; j++)
+		{
+			//get all the triangles pixel is a part of, and the hit point value
+			for (int t = 0; t < triIndex; t++)
+			{
+				GzCoord hit = { 0,0,0 };
+				bool inside = IsPixelInTriangle(i, j, pixelbuffer[j * xres + i], trianglebuffer[t], hit);
+				if (inside)
+				{
+					//if pixel has a triangle: select the triangle with the smallest t-value
+					
+					//else: assign the triangle to this pixel
+
+					//save the hit point to the pixel
+
+				}
+			}
+		}
+	}
+	return GZ_SUCCESS;
+}
+
+bool GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint)
+{
+	//check if (i,j) is in the bounds of the triangle vertices
+	GzCoord temp[3];
+	memcpy((void*)temp, (void*)triangle.vertices, sizeof(GzCoord)*3);
+
+	edge edges[3];
+	int clock = checkCCW(temp[1][0] - temp[0][0], temp[1][1] - temp[0][1], temp[2][0] - temp[0][0], temp[2][1] - temp[0][1]);
+	if (!clock)
+	{
+		return GZ_SUCCESS;
+	}
+	if (clock == 1)
+	{
+		edges[0].from = 0;
+		edges[0].to = 1;
+		edges[1].from = 1;
+		edges[1].to = 2;
+		edges[2].from = 2;
+		edges[2].to = 0;
+	}
+	else if (clock == 2)
+	{
+		edges[0].from = 0;
+		edges[0].to = 2;
+		edges[1].from = 1;
+		edges[1].to = 0;
+		edges[2].from = 2;
+		edges[2].to = 1;
+	}
+	for (int i = 0; i < 3; i++)
+	{
+		int from = edges[i].from;
+		int to = edges[i].to;
+		computeCoeffcient(temp[to][0], temp[to][1], temp[from][0] - temp[to][0], temp[from][1] - temp[to][1], edges[i].A, edges[i].B, edges[i].C);
+	}
+
+	if (!isInside(i, j, edges))
+	{
+		return false;
+	}
+
+	//if in  bounds: shoot a ray from the camera to the pixel
+	memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
+
+
+	//Check if there is an intersection between the ray and triangle
+	
+	//if it intersects:
+		//save the hit point
+		//check if the hit point is in the triangle
+		
+	//return true ONLY if hit point exists and is in the triangle
+	return true;
+}
+
+int GzRender::ComputeRaycastColor()
+{
+	//iterate over the pixels
+	for (int i = 0; i < xres; i++)
+	{
+		for (int j = 0; j < yres; j++)
+		{
+			//compute pixel's normal (same as usual rasterize)
+
+			//iterate over the lights
+			for (int l = 0; l < numlights; l++)
+			{
+				//check if pixel is a shadow
+
+				//if pixel is not a shadow - perform calculations
+			}
+			
+		}
+	}
+
+	return GZ_SUCCESS;
+}
+
+bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
+{
+	//Get pixel's triangle and hit point
+
+	//draw ray from hit point to the light
+
+	//check for ray intersections with every triangle
+
+	return false;
 }

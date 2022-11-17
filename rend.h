@@ -94,6 +94,11 @@ public:
 	int PointAtTValue(float t, GzCoord coord);
 	int RayIntersection(GzTri triangle);
 	int Rasterize(GzTri triangle);
+	int AssignTriangleToPixel();
+	bool IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint);
+	int ComputeRaycastColor();
+	bool IsPixelAShadow(GzPixel pixel, GzLight light);
+
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
 		float res = 0;
