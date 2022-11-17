@@ -98,7 +98,9 @@ public:
 	int CheckTriangleVisibility(GzTri* tri);
 	int TrianglePixel();
 	bool TValueCheck(int x, int y, GzTri* tri);
-	bool ShadowCheck(GzCoord pixel);
+	bool ShadowCheck(GzCoord pixel, GzCoord imageCoord, GzLight light);
+	void GzComputeColorWithShadow(GzCoord screenCoord, GzCoord imageCoord, GzCoord normal, GzColor color);
+	int ComputeIntersectionPoint(GzTri triangle, GzCoord coord);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
 		float res = 0;

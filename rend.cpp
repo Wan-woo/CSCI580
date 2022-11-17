@@ -610,6 +610,56 @@ void GzRender::GzComputeColor(GzCoord coord, GzColor color)
 	color[2] = clamp(0, 1, color[2]);
 }
 
+void GzRender::GzComputeColorWithShadow(GzCoord screenCoord, GzCoord imageCoord, GzCoord normal, GzColor color)
+{
+	GzCoord eye = { 0, 0, -1 };
+	GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 }, ambient = { 0, 0, 0 };
+	for (int i = 0; i < numlights; i++)
+	{
+		//CHECK FOR LIGHT - IGNORE LIGHT IF IT IS A SHADOW
+		bool check = ShadowCheck(screenCoord, imageCoord, lights[i]);
+
+		if (!check)
+		{
+			float nl = GzDot(normal, lights[i].direction);
+			float ne = GzDot(normal, eye);
+			if (nl >= 0 && ne >= 0)
+			{
+				// R dot E inside this or not?
+				// do nothing
+				// equal 0 is fine??
+			}
+			else if (nl <= 0 && ne <= 0)
+			{
+				normal[0] = -normal[0];
+				normal[1] = -normal[1];
+				normal[2] = -normal[2];
+			}
+			else
+			{
+				continue;
+			}
+			nl = GzDot(normal, lights[i].direction);
+			GzCoord R = { 2 * nl * normal[0] - lights[i].direction[0], 2 * nl * normal[1] - lights[i].direction[1], 2 * nl * normal[2] - lights[i].direction[2] };
+			float re = GzDot(R, eye);
+			re = clamp(0, 1, re);
+			specular[0] += lights[i].color[0] * pow(re, spec);
+			specular[1] += lights[i].color[1] * pow(re, spec);
+			specular[2] += lights[i].color[2] * pow(re, spec);
+			diffuse[0] += lights[i].color[0] * nl;
+			diffuse[1] += lights[i].color[1] * nl;
+			diffuse[2] += lights[i].color[2] * nl;
+		}
+	}
+
+	color[0] = Ks[0] * specular[0] + Kd[0] * diffuse[0] + ambientlight.color[0] * Ka[0];
+	color[1] = Ks[1] * specular[1] + Kd[1] * diffuse[1] + ambientlight.color[1] * Ka[1];
+	color[2] = Ks[2] * specular[2] + Kd[2] * diffuse[2] + ambientlight.color[2] * Ka[2];
+	color[0] = clamp(0, 1, color[0]);
+	color[1] = clamp(0, 1, color[1]);
+	color[2] = clamp(0, 1, color[2]);
+}
+
 void GzRender::GzComputePlane(GzCoord* vertices, GzCoord* coeff)
 {
 	float a1 = vertices[1][0] - vertices[0][0]; //X1
@@ -833,6 +883,28 @@ int GzRender::RayIntersection(GzTri* tri)
 	return GZ_FAILURE;
 }
 
+int GzRender::ComputeIntersectionPoint(GzTri triangle, GzCoord coord)
+{
+	//compute triangle (plane) normal using: crossProduct(1, 2, result)
+	GzCoord edge1, edge2, edge3;
+	minus(triangle.imageVerts[1], triangle.imageVerts[0], edge1);
+	minus(triangle.imageVerts[2], triangle.imageVerts[1], edge2);
+	minus(triangle.imageVerts[0], triangle.imageVerts[2], edge3);
+
+	GzCoord planeNorm;
+	crossProduct(edge1, edge2, planeNorm);
+	normalize(planeNorm, planeNorm);
+
+	//compute D then t, ensure t >= 0
+	float dCoeff = dotProduct(planeNorm, triangle.imageVerts[2]);
+	float tValue = (dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
+
+	//compute value at t
+	PointAtTValue(tValue, coord);
+
+	return GZ_SUCCESS;
+}
+
 bool GzRender::IsPointInTriangle(GzTri triangle, GzCoord triNorm, GzCoord Pvalue)
 {
 	GzCoord coord1, coord2, coord3, cross1, cross2, cross3;
@@ -865,13 +937,14 @@ bool GzRender::IsPointInTriangle(GzTri triangle, GzCoord triNorm, GzCoord Pvalue
 int GzRender::Rasterize(GzTri *tri)
 {
 	GzTri triangle = *tri;
-	GzCoord norms[3], temp[3];
+	GzCoord norms[3], temp[3], imageVerts[3];
 	GzTextureIndex uvList[3];
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
 			temp[i][j] = triangle.vertices[i][j];
+			imageVerts[i][j] = triangle.imageVerts[i][j];
 			norms[i][j] = triangle.normals[i][j];
 		}
 		for (int k = 0; k < 2; k++)
@@ -955,6 +1028,10 @@ int GzRender::Rasterize(GzTri *tri)
 	boundRight = maximum(temp[0][0], temp[1][0], temp[2][0]);
 	boundDown = minimum(temp[0][1], temp[1][1], temp[2][1]);
 	boundUp = maximum(temp[0][1], temp[1][1], temp[2][1]);
+
+	int imgX = minimum(imageVerts[0][0], imageVerts[1][0], imageVerts[2][0]);
+	int imgY = minimum(imageVerts[0][1], imageVerts[1][1], imageVerts[2][1]);
+
 	for (int i = ceil(boundLeft); i <= floor(boundRight); i++)
 	{
 		for (int j = ceil(boundDown); j <= floor(boundUp); j++)
@@ -970,7 +1047,10 @@ int GzRender::Rasterize(GzTri *tri)
 				float v = (-uv_plane[1][0] * x - uv_plane[1][1] * y - uv_plane[1][3]) / uv_plane[1][2];
 				float z_prime = z / (MAXINT - z);
 				GzColor normColor;
-				tex_fun(u * (z_prime + 1), v * (z_prime + 1), normColor);
+				if (tex_fun != 0)
+				{
+					tex_fun(u * (z_prime + 1), v * (z_prime + 1), normColor);
+				}
 				if (interp_mode == GZ_COLOR)
 				{
 					flatcolor[0] = normColor[0] * (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
@@ -979,8 +1059,11 @@ int GzRender::Rasterize(GzTri *tri)
 				}
 				else if (interp_mode == GZ_NORMALS)
 				{
-					memcpy((void*)Kd, (void*)normColor, sizeof(GzColor));
-					memcpy((void*)Ka, (void*)normColor, sizeof(GzColor));
+					if (tex_fun != 0)
+					{
+						memcpy((void*)Kd, (void*)normColor, sizeof(GzColor));
+						memcpy((void*)Ka, (void*)normColor, sizeof(GzColor));
+					}
 					GzCoord temp_norm;
 					temp_norm[0] = (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
 					temp_norm[1] = (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
@@ -989,7 +1072,10 @@ int GzRender::Rasterize(GzTri *tri)
 					temp_norm[0] = temp_norm[0] / d;
 					temp_norm[1] = temp_norm[1] / d;
 					temp_norm[2] = temp_norm[2] / d;
-					GzComputeColor(temp_norm, flatcolor);
+
+					GzCoord pixelVal = { i, j, z };
+					GzCoord imgVal = { imgX, imgY, z };
+					GzComputeColorWithShadow(pixelVal, imgVal, temp_norm, flatcolor);
 				}
 				else if (interp_mode == GZ_FLAT)
 				{
@@ -999,7 +1085,10 @@ int GzRender::Rasterize(GzTri *tri)
 				}
 				this->GzPut(i, j, ctoi(flatcolor[0]), ctoi(flatcolor[1]), ctoi(flatcolor[2]), 255, ceil(z));
 			}
+			imgY++;
 		}
+		imgX++;
+
 	}
 
 	return GZ_SUCCESS;
@@ -1027,27 +1116,40 @@ bool GzRender::TValueCheck(int x, int y, GzTri* tri)
 	return true;
 }
 
-bool GzRender::ShadowCheck(GzCoord pixel)
+bool GzRender::ShadowCheck(GzCoord pixel, GzCoord imageCoord, GzLight light)
 {
-	for (int j = 0; j < numlights; j++)
+	//draw ray from surface to the light
+
+	//compute t-value of the pixel for its tri to get intersect point
+	memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
+	minus(imageCoord, ray.origin, ray.direction);
+	normalize(ray.direction, ray.direction);
+
+	//now we have ray to pixel from camera
+	//compute intersection point based on the pixel's triangle
+	int x = (int)pixel[X];
+	int y = (int)pixel[Y];
+	GzTri triangle = *pixelbuffer[y * xres + x].triangle;
+	GzCoord intersection;
+	ComputeIntersectionPoint(triangle, intersection);
+
+	//draw ray from intersection point to light
+	memcpy((void*)ray.origin, (void*)intersection, sizeof(GzCoord));
+	memcpy((void*)ray.direction, (void*)light.direction, sizeof(GzCoord));
+	normalize(light.direction, light.direction);
+
+	//check for intersections with any triangle
+	for (int i = 0; i < triIndex; i++)
 	{
-		for (int i = 0; i < triIndex; i++)
+		GzTri tri = trianglebuffer[i];
+		int result = RayIntersection(&tri);
+		if (result == GZ_SUCCESS)
 		{
-			GzTri triangle = trianglebuffer[i];
-			memcpy((void*)ray.origin, (void*)pixel, sizeof(GzCoord));
-
-			minus(lights[j].direction, ray.origin, ray.direction);
-			normalize(ray.direction, ray.direction);
-			GzCoord intersection;
-			
-			//check if ray to light intersects any triangle
-				//if it intersects: pixel is a shadow
-				//if no intersections, then not a shadow
-
+			return true;
 		}
 	}
 
-	return true;
+	return false;
 }
 
 int GzRender::TrianglePixel()
