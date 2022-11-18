@@ -121,6 +121,7 @@ typedef struct {
 	GzCoord normals[3];
 	GzTextureIndex uv[3];
 	GzColor colors[3];
+	float coeff[4];
 } GzTri;
 #define GZ_TRIANGLE
 #endif;

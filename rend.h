@@ -98,7 +98,7 @@ public:
 	bool IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint);
 	int ComputeRaycastColor();
 	bool IsPixelAShadow(GzPixel pixel, GzLight light);
-
+	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
 		float res = 0;
