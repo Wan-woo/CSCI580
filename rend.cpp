@@ -283,7 +283,7 @@ int GzRender::GzPopMatrix()
 int GzRender::GzPut(int i, int j, GzIntensity r, GzIntensity g, GzIntensity b, GzIntensity a, GzDepth z)
 {
 /* HW1.4 write pixel values into the buffer */
-	if (i >= 0 && i < xres && j >= 0 && j < yres && z <= pixelbuffer[j * xres + i].z && z >= 0)
+	if (i >= 0 && i < xres && j >= 0 && j < yres /* && z <= pixelbuffer[j * xres + i].z && z >= 0*/)
 	{
 		pixelbuffer[j * xres + i].red = r <= 4095 ? r : 4095;
 		pixelbuffer[j * xres + i].red = pixelbuffer[j * xres + i].red >= 0 ? pixelbuffer[j * xres + i].red : 0;
@@ -738,7 +738,23 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 				trianglebuffer[triIndex].vertices[j][k] = screen[j][k];
 				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
 			}
-		}		
+		}	
+
+		// save plane coeff to triangle buffer
+		//compute triangle (plane) normal using: crossProduct(1, 2, result)
+		GzCoord edge1, edge2, edge3;
+		minus(trianglebuffer[triIndex].imageVerts[1], trianglebuffer[triIndex].imageVerts[0], edge1);
+		minus(trianglebuffer[triIndex].imageVerts[2], trianglebuffer[triIndex].imageVerts[1], edge2);
+		minus(trianglebuffer[triIndex].imageVerts[0], trianglebuffer[triIndex].imageVerts[2], edge3);
+		
+		GzCoord planeNorm;
+		crossProduct(edge1, edge2, planeNorm);
+		normalize(planeNorm, planeNorm);
+		float dCoeff = -dotProduct(planeNorm, trianglebuffer[triIndex].imageVerts[2]);
+		trianglebuffer[triIndex].coeff[0] = planeNorm[0];
+		trianglebuffer[triIndex].coeff[1] = planeNorm[1];
+		trianglebuffer[triIndex].coeff[2] = planeNorm[2];
+		trianglebuffer[triIndex].coeff[3] = dCoeff;
 	}
 
 	triIndex++;
@@ -751,6 +767,7 @@ int GzRender::GzRaytracing()
 	ray.origin[X] = m_camera.position[X];
 	ray.origin[Y] = m_camera.position[Y];
 	ray.origin[Z] = m_camera.position[Z];
+	
 
 	for (int i = 0; i < triIndex; i++)
 	{
@@ -762,22 +779,89 @@ int GzRender::GzRaytracing()
 		centroid[Z] = ((tri.imageVerts[0][Z] + tri.imageVerts[1][Z] + tri.imageVerts[2][Z]) / 3.0);
 		minus(centroid, ray.origin, ray.direction);
 		normalize(ray.direction, ray.direction);
+		GzTri*	pointer = nullptr;
+		GzCoord p;
+		bool flag = GzFindFrontestIntersection(pointer, p);
 
 		//shoot ray through pixels in triangle
-		int result = RayIntersection(tri);
+		//int result = RayIntersection(tri);
 
 		//compute colors if hit (we do flat for now)
-		if (result == GZ_FAILURE)
+		if (pointer == nullptr)
 		{
-			return GZ_FAILURE;
+			continue;
 		}
 		else
 		{
-			Rasterize(tri);
+			Rasterize(*pointer);
 		}
 	}
 	return GZ_SUCCESS;
 }
+
+boolean GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord intersectPoint)
+{
+	boolean flag = false;
+	float minDistance = -1.0;
+	for (int i = 0; i < triIndex; i++)
+	{
+		GzTri triangle = trianglebuffer[i];
+		GzCoord planeNorm = {triangle.coeff[0], triangle.coeff[1], triangle.coeff[2]};
+		float dCoeff = triangle.coeff[3];
+		//check if ray and triangle are parallel
+		float dir = dotProduct(planeNorm, ray.direction);
+		if (dir == 0)
+		{
+			//no intersection
+			continue;
+		}
+
+		//compute D then t, ensure t >= 0
+		//float t = (- D - dot(N, orig)) / dot(N, dir); 
+		
+		float tValue = (-dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
+		if (tValue < 0)
+		{
+			//no intersection
+			continue;
+		}
+
+		//check if intersection point is inside triangle
+		GzCoord Pvalue, edge1, edge2, edge3, coord1, coord2, coord3, cross1, cross2, cross3;
+		PointAtTValue(tValue, Pvalue);
+
+		minus(Pvalue, triangle.imageVerts[0], coord1);
+		minus(Pvalue, triangle.imageVerts[1], coord2);
+		minus(Pvalue, triangle.imageVerts[2], coord3);
+
+		minus(triangle.imageVerts[1], triangle.imageVerts[0], edge1);
+		minus(triangle.imageVerts[2], triangle.imageVerts[1], edge2);
+		minus(triangle.imageVerts[0], triangle.imageVerts[2], edge3);
+		crossProduct(edge1, coord1, cross1);
+		crossProduct(edge2, coord2, cross2);
+		crossProduct(edge3, coord3, cross3);
+
+		if (dotProduct(cross1, planeNorm) > 0 && dotProduct(cross2, planeNorm) > 0 && dotProduct(cross3, planeNorm) > 0)
+		{
+			flag = true;//ray hits triangle :)
+			double dist = getDistance(ray.origin, Pvalue);
+			if (minDistance < 0 || dist < minDistance)
+			{
+				minDistance = dist;
+				intersectTriangle = &trianglebuffer[i];
+				//memcpy((void*)intersectTriangle, (void*)&trianglebuffer[i], sizeof(GzTri));
+				for (int c = 0; c < 3; c++)
+				{
+					intersectPoint[c] = Pvalue[c];
+				}
+			}
+		}
+
+	}
+	return flag;
+}
+
+
 
 int GzRender::PointAtTValue(float t, GzCoord coord)
 {

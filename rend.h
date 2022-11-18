@@ -93,7 +93,12 @@ public:
 	int GzRaytracing();
 	int PointAtTValue(float t, GzCoord coord);
 	int RayIntersection(GzTri triangle);
-	int Rasterize(GzTri triangle);
+	int Rasterize(GzTri triangle); 
+
+	boolean GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
+
+
+
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
 		float res = 0;
@@ -123,6 +128,11 @@ public:
 		{
 			res[i] = s1[i] - s2[i];
 		}
+	}
+
+	double GzRender::getDistance(GzCoord p1, GzCoord p2)
+	{
+		return sqrt(pow(p1[0] - p2[0], 2) + pow(p1[1] - p2[1], 2) + pow(p1[2] - p2[2], 2));
 	}
 
 };
