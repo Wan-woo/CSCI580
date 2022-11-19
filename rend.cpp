@@ -135,6 +135,7 @@ int GzRender::GzDefault()
 			pixelbuffer[j * xres + i].blue = 4095;
 			pixelbuffer[j * xres + i].green = 1128;
 			pixelbuffer[j * xres + i].z = 2147483647;
+			pixelbuffer[j * xres + i].triangle = nullptr;
 		}
 	}
 
@@ -757,44 +758,69 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		trianglebuffer[triIndex].coeff[2] = planeNorm[2];
 		trianglebuffer[triIndex].coeff[3] = dCoeff;
 	}
-
-	memcpy((void*)&trianglebuffer[triIndex], (void*)&triangle, sizeof(GzTri));
-
-	triIndex++;
+	
+	if (IsTriangleVisible(triangle))
+	{
+		memcpy((void*)&trianglebuffer[triIndex], (void*)&triangle, sizeof(GzTri));
+		triIndex++;
+	}
 	
 	return GZ_SUCCESS;
 }
 
+bool GzRender::IsTriangleVisible(GzTri triangle)
+{
+	memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
+
+	GzCoord centroid;
+	centroid[X] = ((triangle.imageVerts[0][X] + triangle.imageVerts[1][X] + triangle.imageVerts[2][X]) / 3.0);
+	centroid[Y] = ((triangle.imageVerts[0][Y] + triangle.imageVerts[1][Y] + triangle.imageVerts[2][Y]) / 3.0);
+	centroid[Z] = ((triangle.imageVerts[0][Z] + triangle.imageVerts[1][Z] + triangle.imageVerts[2][Z]) / 3.0);
+	minus(centroid, ray.origin, ray.direction);
+	normalize(ray.direction, ray.direction);
+
+	//shoot ray through pixels in triangle
+	int result = RayIntersection(triangle);
+	if (result == GZ_SUCCESS)
+		return true;
+
+	return false;
+}
+
 int GzRender::GzRaytracing()
 {
-	ray.origin[X] = m_camera.position[X];
-	ray.origin[Y] = m_camera.position[Y];
-	ray.origin[Z] = m_camera.position[Z];
+	AssignTriangleToPixel();
 
-	for (int i = 0; i < triIndex; i++)
-	{
-		GzTri tri = trianglebuffer[i];
+	ComputeRaycastColor();
 
-		GzCoord centroid;
-		centroid[X] = ((tri.imageVerts[0][X] + tri.imageVerts[1][X] + tri.imageVerts[2][X]) / 3.0);
-		centroid[Y] = ((tri.imageVerts[0][Y] + tri.imageVerts[1][Y] + tri.imageVerts[2][Y]) / 3.0);
-		centroid[Z] = ((tri.imageVerts[0][Z] + tri.imageVerts[1][Z] + tri.imageVerts[2][Z]) / 3.0);
-		minus(centroid, ray.origin, ray.direction);
-		normalize(ray.direction, ray.direction);
+	//ray.origin[X] = m_camera.position[X];
+	//ray.origin[Y] = m_camera.position[Y];
+	//ray.origin[Z] = m_camera.position[Z];
 
-		//shoot ray through pixels in triangle
-		int result = RayIntersection(tri);
+	//for (int i = 0; i < triIndex; i++)
+	//{
+	//	GzTri tri = trianglebuffer[i];
 
-		//compute colors if hit (we do flat for now)
-		if (result == GZ_FAILURE)
-		{
-			return GZ_FAILURE;
-		}
-		else
-		{
-			Rasterize(tri);
-		}
-	}
+	//	GzCoord centroid;
+	//	centroid[X] = ((tri.imageVerts[0][X] + tri.imageVerts[1][X] + tri.imageVerts[2][X]) / 3.0);
+	//	centroid[Y] = ((tri.imageVerts[0][Y] + tri.imageVerts[1][Y] + tri.imageVerts[2][Y]) / 3.0);
+	//	centroid[Z] = ((tri.imageVerts[0][Z] + tri.imageVerts[1][Z] + tri.imageVerts[2][Z]) / 3.0);
+	//	minus(centroid, ray.origin, ray.direction);
+	//	normalize(ray.direction, ray.direction);
+
+	//	//shoot ray through pixels in triangle
+	//	int result = RayIntersection(tri);
+
+	//	//compute colors if hit (we do flat for now)
+	//	if (result == GZ_FAILURE)
+	//	{
+	//		return GZ_FAILURE;
+	//	}
+	//	else
+	//	{
+	//		Rasterize(tri);
+	//	}
+	//}
 	return GZ_SUCCESS;
 }
 
@@ -874,6 +900,59 @@ bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord int
 	}
 	return flag;
 }
+
+float GzRender::GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersection)
+{
+	float tValue = -1;
+	float minDistance = -1.0;
+	GzCoord planeNorm = { triangle.coeff[0], triangle.coeff[1], triangle.coeff[2] };
+	float dCoeff = triangle.coeff[3];
+	//check if ray and triangle are parallel
+	float dir = dotProduct(planeNorm, ray.direction);
+	if (dir == 0)
+	{
+		//no intersection
+		return false;
+	}
+
+	//!!!!!! float t = (- D - dot(N, orig)) / dot(N, dir); 
+
+	tValue = (-dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
+	if (tValue < 0)
+	{
+		//no intersection
+		return -1;
+	}
+
+	//check if intersection point is inside triangle
+	GzCoord Pvalue, edge1, edge2, edge3, coord1, coord2, coord3, cross1, cross2, cross3;
+	PointAtTValue(tValue, Pvalue);
+
+	minus(Pvalue, triangle.imageVerts[0], coord1);
+	minus(Pvalue, triangle.imageVerts[1], coord2);
+	minus(Pvalue, triangle.imageVerts[2], coord3);
+
+	minus(triangle.imageVerts[1], triangle.imageVerts[0], edge1);
+	minus(triangle.imageVerts[2], triangle.imageVerts[1], edge2);
+	minus(triangle.imageVerts[0], triangle.imageVerts[2], edge3);
+	crossProduct(edge1, coord1, cross1);
+	crossProduct(edge2, coord2, cross2);
+	crossProduct(edge3, coord3, cross3);
+
+	if (dotProduct(cross1, planeNorm) >= 0 && dotProduct(cross2, planeNorm) >= 0 && dotProduct(cross3, planeNorm) >= 0)
+	{
+		if (minDistance < 0 || tValue < minDistance)
+		{
+			minDistance = tValue;
+			for (int c = 0; c < 3; c++)
+			{
+				intersection[c] = Pvalue[c];
+			}
+		}
+	}
+	return tValue;
+}
+
 int GzRender::RayIntersection(GzTri triangle)
 {
 	//compute triangle (plane) normal using: crossProduct(1, 2, result)
@@ -1079,15 +1158,19 @@ int GzRender::AssignTriangleToPixel()
 			for (int t = 0; t < triIndex; t++)
 			{
 				GzCoord hit = { 0,0,0 };
-				bool inside = IsPixelInTriangle(i, j, pixelbuffer[j * xres + i], trianglebuffer[t], hit);
-				if (inside)
+				float tvalue = IsPixelInTriangle(i, j, pixelbuffer[j * xres + i], trianglebuffer[t], hit);
+				if (tvalue > 0)
 				{
-					//if pixel has a triangle: select the triangle with the smallest t-value
-					
+					//if pixel has a triangle: 
+					//		select the triangle with the smallest t-value
 					//else: assign the triangle to this pixel
-
-					//save the hit point to the pixel
-
+					GzPixel pixel = pixelbuffer[j * xres + i];
+					if (pixel.triangle == nullptr || (pixel.tValue > tvalue))
+					{
+						pixel.triangle = &trianglebuffer[t];
+						memcpy((void*)pixel.hitPoint, (void*)hit, sizeof(GzCoord));
+						pixel.tValue = tvalue;
+					}
 				}
 			}
 		}
@@ -1095,8 +1178,10 @@ int GzRender::AssignTriangleToPixel()
 	return GZ_SUCCESS;
 }
 
-bool GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint)
+float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint)
 {
+	float tValue = -1;
+
 	//check if (i,j) is in the bounds of the triangle vertices
 	GzCoord temp[3];
 	memcpy((void*)temp, (void*)triangle.vertices, sizeof(GzCoord)*3);
@@ -1105,7 +1190,7 @@ bool GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, Gz
 	int clock = checkCCW(temp[1][0] - temp[0][0], temp[1][1] - temp[0][1], temp[2][0] - temp[0][0], temp[2][1] - temp[0][1]);
 	if (!clock)
 	{
-		return GZ_SUCCESS;
+		return tValue;
 	}
 	if (clock == 1)
 	{
@@ -1134,21 +1219,27 @@ bool GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, Gz
 
 	if (!isInside(i, j, edges))
 	{
-		return false;
+		return tValue;
 	}
 
-	//if in  bounds: shoot a ray from the camera to the pixel
+	//if in bounds: shoot a ray from the camera to the pixel
 	memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
 
-
 	//Check if there is an intersection between the ray and triangle
-	
-	//if it intersects:
-		//save the hit point
-		//check if the hit point is in the triangle
-		
-	//return true ONLY if hit point exists and is in the triangle
-	return true;
+	tValue = GzCheckForTriangleIntersection(triangle, hitPoint);
+
+	//if it intersects and is inside the triangle
+	//save the hit point if the hit point is in the triangle
+	if (tValue > 0)
+	{
+		memcpy((void*)pixel.hitPoint, (void*)hitPoint, sizeof(GzCoord));
+		pixel.tValue = tValue;
+
+		//return true ONLY if hit point exists and is in the triangle
+		return true;
+	}
+
+	return false;
 }
 
 int GzRender::ComputeRaycastColor()
@@ -1158,29 +1249,99 @@ int GzRender::ComputeRaycastColor()
 	{
 		for (int j = 0; j < yres; j++)
 		{
+			GzPixel pixel = pixelbuffer[j * xres + i];
+
+			if (pixel.triangle == nullptr)
+				continue;
+
 			//compute pixel's normal (same as usual rasterize)
+			GzCoord coord = { 0,0,0 };
+			ComputePixelNormal(i, j, *pixel.triangle, coord);
 
 			//iterate over the lights
+			GzColor color = { 0,0,0 };
+			GzCoord eye = { 0, 0, -1 };
+			GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 }, ambient = { 0, 0, 0 };
 			for (int l = 0; l < numlights; l++)
-			{
-				//check if pixel is a shadow
+			{				
+				//check if pixel is a shadow by checking for intersection
+				bool result = IsPixelAShadow(pixel, lights[l]);
 
 				//if pixel is not a shadow - perform calculations
+				if (result)
+				{
+					continue;
+				}
+
+				float nl = GzDot(coord, lights[i].direction);
+				float ne = GzDot(coord, eye);
+				if (nl >= 0 && ne >= 0)
+				{
+					// R dot E inside this or not?
+					// do nothing
+					// equal 0 is fine??
+				}
+				else if (nl <= 0 && ne <= 0)
+				{
+					coord[0] = -coord[0];
+					coord[1] = -coord[1];
+					coord[2] = -coord[2];
+				}
+				else
+				{
+					continue;
+				}
+
+				nl = GzDot(coord, lights[l].direction);
+				GzCoord R = { 2 * nl * coord[0] - lights[l].direction[0], 2 * nl * coord[1] - lights[l].direction[1], 2 * nl * coord[2] - lights[l].direction[2] };
+				float re = GzDot(R, eye);
+				re = clamp(0, 1, re);
+				specular[0] += lights[l].color[0] * pow(re, spec);
+				specular[1] += lights[l].color[1] * pow(re, spec);
+				specular[2] += lights[l].color[2] * pow(re, spec);
+				diffuse[0] += lights[l].color[0] * nl;
+				diffuse[1] += lights[l].color[1] * nl;
+				diffuse[2] += lights[l].color[2] * nl;
 			}
-			
+			color[0] = Ks[0] * specular[0] + Kd[0] * diffuse[0] + ambientlight.color[0] * Ka[0];
+			color[1] = Ks[1] * specular[1] + Kd[1] * diffuse[1] + ambientlight.color[1] * Ka[1];
+			color[2] = Ks[2] * specular[2] + Kd[2] * diffuse[2] + ambientlight.color[2] * Ka[2];
+			color[0] = clamp(0, 1, color[0]);
+			color[1] = clamp(0, 1, color[1]);
+			color[2] = clamp(0, 1, color[2]);	
+
+			GzPut(i, j, color[0], color[1], color[2], pixel.alpha, pixel.z);
 		}
 	}
+	
+	return GZ_SUCCESS;
+}
+
+int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
+{
+	GzComputePlane(triangle.vertices, triangle.normals);
+
+	normal[0] = (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
+	normal[1] = (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
+	normal[2] = (-planes[2][0] * i - planes[2][1] * j - planes[2][3]) / planes[2][2];
+	
+	float d = GzCoordLength(normal);
+	normal[0] = normal[0] / d;
+	normal[1] = normal[1] / d;
+	normal[2] = normal[2] / d;
 
 	return GZ_SUCCESS;
 }
 
 bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 {
-	//Get pixel's triangle and hit point
-
-	//draw ray from hit point to the light
-
+	//Compute ray from pixel hit point to light
+	memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord));
+	memcpy((void*)ray.direction, (void*)light.direction, sizeof(GzCoord));
+	normalize(ray.direction, ray.direction);
+	
 	//check for ray intersections with every triangle
-
-	return false;
+	GzTri* dummyTri;
+	GzCoord dummyIntersect;
+	return GzFindFrontestIntersection(dummyTri, dummyIntersect);
 }

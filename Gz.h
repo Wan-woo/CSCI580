@@ -100,20 +100,6 @@ typedef struct  GzInput
 #define V       1
 
 
-#ifndef GZ_PIXEL
-typedef	struct {
-  GzIntensity    red;	
-  GzIntensity    green;
-  GzIntensity    blue;
-  GzIntensity    alpha;
-  GzDepth	 z;
-} GzPixel;
-#define GZ_PIXEL
-#endif;
-
-#define	MAXXRES	1024	/* put some bounds on size in case of error */
-#define	MAXYRES	1024
-
 #ifndef GZ_TRIANGLE
 typedef struct {
 	GzCoord vertices[3];
@@ -125,6 +111,25 @@ typedef struct {
 } GzTri;
 #define GZ_TRIANGLE
 #endif;
+
+#ifndef GZ_PIXEL
+typedef	struct {
+  GzIntensity    red;	
+  GzIntensity    green;
+  GzIntensity    blue;
+  GzIntensity    alpha;
+  GzDepth	 z;
+  GzTri* triangle;
+  float tValue;
+  GzCoord hitPoint;
+} GzPixel;
+#define GZ_PIXEL
+#endif;
+
+#define	MAXXRES	1024	/* put some bounds on size in case of error */
+#define	MAXYRES	1024
+
+
 
 #ifndef GZ_RAY
 typedef struct {
