@@ -916,7 +916,6 @@ float GzRender::GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersect
 	}
 
 	//!!!!!! float t = (- D - dot(N, orig)) / dot(N, dir); 
-
 	tValue = (-dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
 	if (tValue < 0)
 	{
@@ -1154,22 +1153,23 @@ int GzRender::AssignTriangleToPixel()
 	{
 		for (int j = 0; j < yres; j++)
 		{
+			GzPixel pixel = pixelbuffer[j * xres + i];
 			//get all the triangles pixel is a part of, and the hit point value
 			for (int t = 0; t < triIndex; t++)
 			{
 				GzCoord hit = { 0,0,0 };
-				float tvalue = IsPixelInTriangle(i, j, pixelbuffer[j * xres + i], trianglebuffer[t], hit);
+				GzTri triangle = trianglebuffer[t];
+				float tvalue = IsPixelInTriangle(i, j, pixel, triangle, hit);
 				if (tvalue > 0)
 				{
 					//if pixel has a triangle: 
 					//		select the triangle with the smallest t-value
 					//else: assign the triangle to this pixel
-					GzPixel pixel = pixelbuffer[j * xres + i];
 					if (pixel.triangle == nullptr || (pixel.tValue > tvalue))
 					{
-						pixel.triangle = &trianglebuffer[t];
-						memcpy((void*)pixel.hitPoint, (void*)hit, sizeof(GzCoord));
-						pixel.tValue = tvalue;
+						pixelbuffer[j * xres + i].triangle = &triangle;
+						memcpy((void*)pixelbuffer[j * xres + i].hitPoint, (void*)hit, sizeof(GzCoord));
+						pixelbuffer[j * xres + i].tValue = tvalue;
 					}
 				}
 			}
@@ -1224,6 +1224,9 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 
 	//if in bounds: shoot a ray from the camera to the pixel
 	memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
+	GzCoord pix = { i, j, pixel.z };
+	minus(pix, ray.origin, ray.direction);
+	normalize(ray.direction, ray.direction);
 
 	//Check if there is an intersection between the ray and triangle
 	tValue = GzCheckForTriangleIntersection(triangle, hitPoint);
@@ -1232,7 +1235,7 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 	//save the hit point if the hit point is in the triangle
 	if (tValue > 0)
 	{
-		memcpy((void*)pixel.hitPoint, (void*)hitPoint, sizeof(GzCoord));
+		//memcpy((void*)pixel.hitPoint, (void*)hitPoint, sizeof(GzCoord));
 		pixel.tValue = tValue;
 
 		//return true ONLY if hit point exists and is in the triangle

@@ -132,6 +132,19 @@ public:
 			res[i] = s1[i] - s2[i];
 		}
 	}
+	void GzRender::computeImageCoordinate(GzCoord screen, GzCoord image)
+	{
+		/*imageScale ::= min(pictureBox.width / image.width, pictureBox.height / image.height)
+
+		scaledWidth  ::= image.width * imageScale
+		scaledHeight ::= image.height * imageScale
+
+		// Compute the offset of the image to center it in the picture box
+		imageX ::= (pictureBox.width - scaledWidth) / 2
+		imageY ::= (pictureBox.height - scaledHeight) / 2*/
+
+		
+	}
 
 };
 #endif
