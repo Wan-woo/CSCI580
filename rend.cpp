@@ -653,7 +653,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		- optional: test for triangles with all three verts off-screen (trivial frustum cull)
 -- invoke triangle rasterizer  
 */
-	GzTri triangle;
 	GzCoord colors[3];
 	GzTextureIndex uvList[3];
 	if (nameList[0] == GZ_NULL_TOKEN)
@@ -684,16 +683,16 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		//save transformed norms to triangle buffer
 		for (int i = 0; i < 3; i++)
 		{
-			triangle.normals[0][i] = coord0[i];
-			triangle.normals[1][i] = coord1[i];
-			triangle.normals[2][i] = coord2[i];
+			trianglebuffer[triIndex].normals[0][i] = coord0[i];
+			trianglebuffer[triIndex].normals[1][i] = coord1[i];
+			trianglebuffer[triIndex].normals[2][i] = coord2[i];
 		}
 
 		if (interp_mode == GZ_FLAT)
 		{
 			// choose first norm coord0
 			GzCoord coord = { coord0[0], coord0[1], coord0[2] };
-			GzComputeColor(coord, triangle.colors[0]);
+			GzComputeColor(coord, trianglebuffer[triIndex].colors[0]);
 		}
 		else if (interp_mode == GZ_COLOR)
 		{
@@ -701,9 +700,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			memcpy((void*)Ka, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Kd, (void*)K_temp, sizeof(GzCoord));
 			memcpy((void*)Ks, (void*)K_temp, sizeof(GzCoord));
-			GzComputeColor(coord0, triangle.colors[0]);
-			GzComputeColor(coord1, triangle.colors[1]);
-			GzComputeColor(coord2, triangle.colors[2]);
+			GzComputeColor(coord0, trianglebuffer[triIndex].colors[0]);
+			GzComputeColor(coord1, trianglebuffer[triIndex].colors[1]);
+			GzComputeColor(coord2, trianglebuffer[triIndex].colors[2]);
 		}
 		/*else if (interp_mode == GZ_NORMALS)
 		{
@@ -737,8 +736,8 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				triangle.vertices[j][k] = screen[j][k];
-				triangle.imageVerts[j][k] = imagevertices[j][k];
+				trianglebuffer[triIndex].vertices[j][k] = screen[j][k];
+				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
 			}
 		}
 
@@ -759,9 +758,8 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		trianglebuffer[triIndex].coeff[3] = dCoeff;
 	}
 	
-	if (IsTriangleVisible(triangle))
+	if (IsTriangleVisible(trianglebuffer[triIndex]))
 	{
-		memcpy((void*)&trianglebuffer[triIndex], (void*)&triangle, sizeof(GzTri));
 		triIndex++;
 	}
 	
@@ -1167,7 +1165,7 @@ int GzRender::AssignTriangleToPixel()
 					//else: assign the triangle to this pixel
 					if (pixel.triangle == nullptr || (pixel.tValue > tvalue))
 					{
-						pixelbuffer[j * xres + i].triangle = &triangle;
+						pixelbuffer[j * xres + i].triangle = &trianglebuffer[t];
 						memcpy((void*)pixelbuffer[j * xres + i].hitPoint, (void*)hit, sizeof(GzCoord));
 						pixelbuffer[j * xres + i].tValue = tvalue;
 					}
@@ -1254,12 +1252,13 @@ int GzRender::ComputeRaycastColor()
 		{
 			GzPixel pixel = pixelbuffer[j * xres + i];
 
-			if (pixel.triangle == nullptr)
+			if (pixel.triangle == nullptr || pixel.tValue < 0)
 				continue;
 
 			//compute pixel's normal (same as usual rasterize)
 			GzCoord coord = { 0,0,0 };
-			ComputePixelNormal(i, j, *pixel.triangle, coord);
+			GzTri* triangle = pixelbuffer[j * xres + i].triangle;
+			ComputePixelNormal(i, j, *triangle, coord);
 
 			//iterate over the lights
 			GzColor color = { 0,0,0 };
