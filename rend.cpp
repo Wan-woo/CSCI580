@@ -95,6 +95,10 @@ GzRender::GzRender(int xRes, int yRes)
 	trianglebuffer = new GzTri[MAX_TRIANGLES];
 	triIndex = 0;
 
+	/* Initializa root */
+	root = new BSP_tree();
+	root->order = 0;
+
 /* HW 3.6
 - setup Xsp and anything only done once 
 - init default camera 
@@ -721,6 +725,7 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		GzComputeCoord(Ximage[matlevel - 1], temp[1], coord1);
 		GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);
 		
+		/*ToDo: include transform, scale operations...*/
 		GzCoord imagevertices[3];
 		GzComputeCoord(Xnorm[matlevel - 1], temp[0], imagevertices[0]);
 		GzComputeCoord(Xnorm[matlevel - 1], temp[1], imagevertices[1]);
@@ -737,6 +742,23 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			{
 				trianglebuffer[triIndex].vertices[j][k] = screen[j][k];
 				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
+				switch (k)
+				{
+					case 0:
+						root->max_x = max(trianglebuffer[triIndex].imageVerts[j][k], root->max_x);
+						root->min_x = min(trianglebuffer[triIndex].imageVerts[j][k], root->min_x);
+						break;
+					case 1:
+						root->max_y = max(trianglebuffer[triIndex].imageVerts[j][k], root->max_y);
+						root->min_y = min(trianglebuffer[triIndex].imageVerts[j][k], root->min_y);
+						break;
+					case 2:
+						root->max_z = max(trianglebuffer[triIndex].imageVerts[j][k], root->max_z);
+						root->min_z = min(trianglebuffer[triIndex].imageVerts[j][k], root->min_z);
+						break;
+					default:
+						continue;
+				}
 			}
 		}	
 
@@ -764,10 +786,16 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 int GzRender::GzRaytracing()
 {
+	/* GzCreateBSPTree initial */
+	for (int i = 0; i < triIndex; i++)	root->triangles.push_back(i);
+	GzCreateBSPTree(root, 1);
 	//ray.origin[X] = m_camera.position[X];
 	//ray.origin[Y] = m_camera.position[Y];
 	//ray.origin[Z] = m_camera.position[Z];
-	GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin);
+	ray.origin[X] = xres/2;
+	ray.origin[Y] = yres/2;
+	ray.origin[Z] = -1000;
+	//GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin);
 
 	for (int i = 0; i < triIndex; i++)
 	{
@@ -857,6 +885,73 @@ boolean GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord 
 
 	}
 	return flag;
+}
+
+bool GzRender::insideBoundingBox(GzCoord vertex, BSP_tree* node)
+{
+	return ((vertex[0] >= node->min_x && vertex[0] <= node->max_x) &&
+		(vertex[1] >= node->min_y && vertex[1] <= node->max_y) &&
+		(vertex[2] >= node->min_z && vertex[2] <= node->max_z));
+}
+
+void GzRender::GzCreateBSPTree(BSP_tree* node, int depth)
+{
+	if (depth > BSP_MAX_DEPTH || node->triangles.size() < BSP_MAX_NODE_SIZE)
+	{
+		return;
+	}
+	BSP_tree* front = new BSP_tree(node);
+	BSP_tree* back = new BSP_tree(node);
+	if (node->order == 0)		/* xy plane*/
+	{
+		float mid_z = (node->max_z + node->min_z) / 2;
+		front->min_z = mid_z;
+		back->max_z = mid_z;
+
+	}
+	else if (node->order == 1)	/* yz plane*/
+	{
+		float mid_x = (node->max_x + node->min_x) / 2;
+		front->min_x = mid_x;
+		back->max_x = mid_x;
+	}
+	else if (node->order == 2)	/* xz plane*/
+	{
+		float mid_y = (node->max_y + node->min_y) / 2;
+		front->min_y = mid_y;
+		back->max_y = mid_y;
+	}
+	/* Compute triangle candidate list in their own space */
+	for (auto& index : node->triangles)
+	{
+		GzTri tri = trianglebuffer[index];
+		/* check if three vertices inside the bounding box */
+		bool putInFront = false, putInBack = false;
+		for (int i = 0; i < 3; i++)
+		{
+			if (insideBoundingBox(tri.imageVerts[i], front) && !putInFront)
+			{
+				front->triangles.push_back(index);
+				putInFront = true;
+			}
+			if (insideBoundingBox(tri.imageVerts[i], back) && !putInBack)
+			{
+				back->triangles.push_back(index);
+				putInBack = true;
+			}
+		}
+	}
+	node->triangles.clear();
+	node->front = front;
+	node->back = back;
+	GzCreateBSPTree(node->front, depth + 1);
+	GzCreateBSPTree(node->back, depth + 1);
+}
+
+bool GzRender::GzFindFrontestIntersection_BSP(GzTri*& intersectTriangle, GzCoord intersectPoint)
+{
+
+	return false;
 }
 
 
