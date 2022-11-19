@@ -764,10 +764,10 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 int GzRender::GzRaytracing()
 {
-	ray.origin[X] = m_camera.position[X];
-	ray.origin[Y] = m_camera.position[Y];
-	ray.origin[Z] = m_camera.position[Z];
-	
+	//ray.origin[X] = m_camera.position[X];
+	//ray.origin[Y] = m_camera.position[Y];
+	//ray.origin[Z] = m_camera.position[Z];
+	GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin);
 
 	for (int i = 0; i < triIndex; i++)
 	{
@@ -787,7 +787,7 @@ int GzRender::GzRaytracing()
 		//int result = RayIntersection(tri);
 
 		//compute colors if hit (we do flat for now)
-		if (pointer == nullptr)
+		if (!flag)
 		{
 			continue;
 		}
@@ -841,15 +841,13 @@ boolean GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord 
 		crossProduct(edge2, coord2, cross2);
 		crossProduct(edge3, coord3, cross3);
 
-		if (dotProduct(cross1, planeNorm) > 0 && dotProduct(cross2, planeNorm) > 0 && dotProduct(cross3, planeNorm) > 0)
+		if (dotProduct(cross1, planeNorm) >= 0 && dotProduct(cross2, planeNorm) >= 0 && dotProduct(cross3, planeNorm) >= 0)
 		{
 			flag = true;//ray hits triangle :)
-			double dist = getDistance(ray.origin, Pvalue);
-			if (minDistance < 0 || dist < minDistance)
+			if (minDistance < 0 || tValue < minDistance)
 			{
-				minDistance = dist;
+				minDistance = tValue;
 				intersectTriangle = &trianglebuffer[i];
-				//memcpy((void*)intersectTriangle, (void*)&trianglebuffer[i], sizeof(GzTri));
 				for (int c = 0; c < 3; c++)
 				{
 					intersectPoint[c] = Pvalue[c];
