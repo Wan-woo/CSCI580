@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.32802.440
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CS580HW5", "CS580HW5.vcxproj", "{F7714C2D-1610-4DDA-AAF5-3D9D9E691C6D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CS580HW5", "CS580HW5.vcxproj", "{D7A825EF-9FFF-4530-BF9A-4317531E74A3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F7714C2D-1610-4DDA-AAF5-3D9D9E691C6D}.Debug|x86.ActiveCfg = Debug|Win32
-		{F7714C2D-1610-4DDA-AAF5-3D9D9E691C6D}.Debug|x86.Build.0 = Debug|Win32
-		{F7714C2D-1610-4DDA-AAF5-3D9D9E691C6D}.Release|x86.ActiveCfg = Release|Win32
-		{F7714C2D-1610-4DDA-AAF5-3D9D9E691C6D}.Release|x86.Build.0 = Release|Win32
+		{D7A825EF-9FFF-4530-BF9A-4317531E74A3}.Debug|x86.ActiveCfg = Debug|Win32
+		{D7A825EF-9FFF-4530-BF9A-4317531E74A3}.Debug|x86.Build.0 = Debug|Win32
+		{D7A825EF-9FFF-4530-BF9A-4317531E74A3}.Release|x86.ActiveCfg = Release|Win32
+		{D7A825EF-9FFF-4530-BF9A-4317531E74A3}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {1B604682-2E98-44DF-9C74-209B2D1926B2}
+		SolutionGuid = {82B7535B-FD8E-4849-A50B-AF0AEBBDF27E}
 	EndGlobalSection
 EndGlobal

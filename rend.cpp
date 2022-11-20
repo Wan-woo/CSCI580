@@ -787,9 +787,44 @@ bool GzRender::IsTriangleVisible(GzTri triangle)
 
 int GzRender::GzRaytracing()
 {
-	AssignTriangleToPixel();
+	//find scale and convert from degrees to rads
+	float scale = tan((m_camera.FOV * 0.5) * (PI / 180));
+	float aspectRatio = xres / yres;
+
+	//calculate origin of the vector based on camera
+	//translate to screen space using computer coord and matrix
+	GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin);
+
+
+	//iterate through the pixels to compute a primary ray for each
+	//pixels are in screen space so convert primary ray origin/direction into screen
+	for (int i = 0; i < xres; i++)
+	{
+		for (int j = 0; j < yres; j++)
+		{
+			//calculate ray direction and transform into screen space
+
+			float x = (2 * (j + 0.5) / xres - 1) * aspectRatio * scale;		
+			float y = (1 - 2 * (i + 0.5) / yres) * scale; 
+
+			ray.direction[0] = x; 
+			ray.direction[1] = y;
+			ray.direction[2] = -1;
+
+			GzComputeCoord(Xnorm[matlevel - 1], ray.direction, ray.direction); 
+
+			//normalize because direction vector
+			normalize(ray.direction, ray.direction); 
+
+			//using the primary ray calculated per pixel -> start raytracing 
+			AssignTriangleToPixel(i, j);
+
+		}
+	}
 
 	ComputeRaycastColor();
+	
+	
 
 	//ray.origin[X] = m_camera.position[X];
 	//ray.origin[Y] = m_camera.position[Y];
@@ -1144,35 +1179,29 @@ int GzRender::Rasterize(GzTri triangle)
 	return GZ_SUCCESS;
 }
 
-int GzRender::AssignTriangleToPixel()
+int GzRender::AssignTriangleToPixel(int i , int j)
 {
-	//iterate over the pixels
-	for (int i = 0; i < xres; i++)
+	GzPixel pixel = pixelbuffer[j * xres + i];
+	//get all the triangles pixel is a part of, and the hit point value
+	for (int t = 0; t < triIndex; t++)
 	{
-		for (int j = 0; j < yres; j++)
+		GzCoord hit = { 0,0,0 };
+		GzTri triangle = trianglebuffer[t];
+		float tvalue = IsPixelInTriangle(i, j, pixel, triangle, hit);
+		if (tvalue > 0)
 		{
-			GzPixel pixel = pixelbuffer[j * xres + i];
-			//get all the triangles pixel is a part of, and the hit point value
-			for (int t = 0; t < triIndex; t++)
+			//if pixel has a triangle: 
+			//		select the triangle with the smallest t-value
+			//else: assign the triangle to this pixel
+			if (pixel.triangle == nullptr || (pixel.tValue > tvalue))
 			{
-				GzCoord hit = { 0,0,0 };
-				GzTri triangle = trianglebuffer[t];
-				float tvalue = IsPixelInTriangle(i, j, pixel, triangle, hit);
-				if (tvalue > 0)
-				{
-					//if pixel has a triangle: 
-					//		select the triangle with the smallest t-value
-					//else: assign the triangle to this pixel
-					if (pixel.triangle == nullptr || (pixel.tValue > tvalue))
-					{
-						pixelbuffer[j * xres + i].triangle = &trianglebuffer[t];
-						memcpy((void*)pixelbuffer[j * xres + i].hitPoint, (void*)hit, sizeof(GzCoord));
-						pixelbuffer[j * xres + i].tValue = tvalue;
-					}
-				}
+				pixelbuffer[j * xres + i].triangle = &trianglebuffer[t];
+				memcpy((void*)pixelbuffer[j * xres + i].hitPoint, (void*)hit, sizeof(GzCoord));
+				pixelbuffer[j * xres + i].tValue = tvalue;
 			}
 		}
 	}
+
 	return GZ_SUCCESS;
 }
 
@@ -1221,10 +1250,10 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 	}
 
 	//if in bounds: shoot a ray from the camera to the pixel
-	memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
-	GzCoord pix = { i, j, pixel.z };
-	minus(pix, ray.origin, ray.direction);
-	normalize(ray.direction, ray.direction);
+	//memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
+	//GzCoord pix = { i, j, pixel.z };
+	//minus(pix, ray.origin, ray.direction);
+	//normalize(ray.direction, ray.direction);
 
 	//Check if there is an intersection between the ray and triangle
 	tValue = GzCheckForTriangleIntersection(triangle, hitPoint);
@@ -1245,6 +1274,7 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 
 int GzRender::ComputeRaycastColor()
 {
+	
 	//iterate over the pixels
 	for (int i = 0; i < xres; i++)
 	{
@@ -1255,6 +1285,7 @@ int GzRender::ComputeRaycastColor()
 			if (pixel.triangle == nullptr || pixel.tValue < 0)
 				continue;
 
+			/*
 			//compute pixel's normal (same as usual rasterize)
 			GzCoord coord = { 0,0,0 };
 			GzTri* triangle = pixelbuffer[j * xres + i].triangle;
@@ -1312,9 +1343,12 @@ int GzRender::ComputeRaycastColor()
 			color[1] = clamp(0, 1, color[1]);
 			color[2] = clamp(0, 1, color[2]);	
 
-			GzPut(i, j, color[0], color[1], color[2], pixel.alpha, pixel.z);
+			*/
+			//GzPut(i, j, color[0], color[1], color[2], pixel.alpha, pixel.z);
+			GzPut(i, j, 0, 0, 0, 1, pixel.z);
 		}
 	}
+	
 	
 	return GZ_SUCCESS;
 }

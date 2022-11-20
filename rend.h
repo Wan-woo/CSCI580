@@ -95,7 +95,7 @@ public:
 	int PointAtTValue(float t, GzCoord coord);
 	int RayIntersection(GzTri triangle);
 	int Rasterize(GzTri triangle);
-	int AssignTriangleToPixel();
+	int AssignTriangleToPixel(int i, int j);
 	float IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint);
 	int ComputeRaycastColor();
 	int ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal);
