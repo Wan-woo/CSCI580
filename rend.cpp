@@ -792,9 +792,9 @@ int GzRender::GzRaytracing()
 	//ray.origin[X] = m_camera.position[X];
 	//ray.origin[Y] = m_camera.position[Y];
 	//ray.origin[Z] = m_camera.position[Z];
-	ray.origin[X] = xres/2;
-	ray.origin[Y] = yres/2;
-	ray.origin[Z] = -1000;
+	ray.origin[X] = 0;
+	ray.origin[Y] = 0;
+	ray.origin[Z] = 0;
 	//GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin);
 
 	for (int i = 0; i < triIndex; i++)
@@ -809,7 +809,7 @@ int GzRender::GzRaytracing()
 		normalize(ray.direction, ray.direction);
 		GzTri*	pointer = nullptr;
 		GzCoord p;
-		bool flag = GzFindFrontestIntersection(pointer, p);
+		bool flag = GzFindFrontestIntersection_BSP(pointer, p);
 
 		//shoot ray through pixels in triangle
 		//int result = RayIntersection(tri);
@@ -827,7 +827,67 @@ int GzRender::GzRaytracing()
 	return GZ_SUCCESS;
 }
 
-boolean GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord intersectPoint)
+bool GzRender::GzFindFrontestFromList(GzTri*& intersectTriangle, GzCoord intersectPoint, vector<int>& triangles)
+{
+	boolean flag = false;
+	float minDistance = -1.0;
+	for (auto& i : triangles)
+	{
+		GzTri triangle = trianglebuffer[i];
+		GzCoord planeNorm = { triangle.coeff[0], triangle.coeff[1], triangle.coeff[2] };
+		float dCoeff = triangle.coeff[3];
+		//check if ray and triangle are parallel
+		float dir = dotProduct(planeNorm, ray.direction);
+		if (dir == 0)
+		{
+			//no intersection
+			continue;
+		}
+
+		//compute D then t, ensure t >= 0
+		//float t = (- D - dot(N, orig)) / dot(N, dir); 
+
+		float tValue = (-dCoeff - dotProduct(planeNorm, ray.origin)) / (dotProduct(planeNorm, ray.direction));
+		if (tValue < 0)
+		{
+			//no intersection
+			continue;
+		}
+
+		//check if intersection point is inside triangle
+		GzCoord Pvalue, edge1, edge2, edge3, coord1, coord2, coord3, cross1, cross2, cross3;
+		PointAtTValue(tValue, Pvalue);
+
+		minus(Pvalue, triangle.imageVerts[0], coord1);
+		minus(Pvalue, triangle.imageVerts[1], coord2);
+		minus(Pvalue, triangle.imageVerts[2], coord3);
+
+		minus(triangle.imageVerts[1], triangle.imageVerts[0], edge1);
+		minus(triangle.imageVerts[2], triangle.imageVerts[1], edge2);
+		minus(triangle.imageVerts[0], triangle.imageVerts[2], edge3);
+		crossProduct(edge1, coord1, cross1);
+		crossProduct(edge2, coord2, cross2);
+		crossProduct(edge3, coord3, cross3);
+
+		if (dotProduct(cross1, planeNorm) >= 0 && dotProduct(cross2, planeNorm) >= 0 && dotProduct(cross3, planeNorm) >= 0)
+		{
+			flag = true;//ray hits triangle :)
+			if (minDistance < 0 || tValue < minDistance)
+			{
+				minDistance = tValue;
+				intersectTriangle = &trianglebuffer[i];
+				for (int c = 0; c < 3; c++)
+				{
+					intersectPoint[c] = Pvalue[c];
+				}
+			}
+		}
+
+	}
+	return flag;
+}
+
+bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord intersectPoint)
 {
 	boolean flag = false;
 	float minDistance = -1.0;
@@ -948,10 +1008,113 @@ void GzRender::GzCreateBSPTree(BSP_tree* node, int depth)
 	GzCreateBSPTree(node->back, depth + 1);
 }
 
+bool GzRender::GzRayTreeIntersect(BSP_tree* node, GzTri*& intersectTriangle, GzCoord intersectPoint, float min, float max)
+{
+	if (node == NULL)	return false;
+	if (node->front == NULL && node->back == NULL)
+	{
+		// leaf node
+		return GzFindFrontestFromList(intersectTriangle, intersectPoint, node->triangles);
+	}
+	
+	/* compute dist to cutting plane */
+	float dist;
+	BSP_tree *nearRay = node->front, *farRay=node->back;
+	if (node->order == 0)		/* xy plane*/
+	{
+		float mid_z = (node->max_z + node->min_z) / 2;
+		dist = (mid_z - ray.origin[2]) / ray.direction[2];
+		if (ray.origin[2] < mid_z)
+		{
+			nearRay = node->back;
+			farRay = node->front;
+		}
+	}
+	else if (node->order == 1)	/* yz plane*/
+	{
+		float mid_x = (node->max_x + node->min_x) / 2;
+		dist = (mid_x - ray.origin[0]) / ray.direction[0];
+		if (ray.origin[0] < mid_x)
+		{
+			nearRay = node->back;
+			farRay = node->front;
+		}
+	}
+	else if (node->order == 2)	/* xz plane*/
+	{
+		float mid_y = (node->max_y + node->min_y) / 2;
+		dist = (mid_y - ray.origin[1]) / ray.direction[1];
+		if (ray.origin[1] < mid_y)
+		{
+			nearRay = node->back;
+			farRay = node->front;
+		}
+	}
+	if (dist > max || dist < 0)	GzRayTreeIntersect(nearRay, intersectTriangle, intersectPoint, min, max);
+	else if(dist < min)	GzRayTreeIntersect(farRay, intersectTriangle, intersectPoint, min, max);
+	else
+	{
+		return GzRayTreeIntersect(nearRay, intersectTriangle, intersectPoint, min, dist) ? true : GzRayTreeIntersect(farRay, intersectTriangle, intersectPoint, dist, max);
+	}
+}
+
 bool GzRender::GzFindFrontestIntersection_BSP(GzTri*& intersectTriangle, GzCoord intersectPoint)
 {
+	float bmin = FLT_MAX, bmax = FLT_MIN;
 
-	return false;
+	auto t_section = [](float origin, float direction, float p)
+	{
+		return (p-origin)/direction;
+	};
+
+	// compute ray intersection with six surfaces
+	// xy plane
+	float t_minz = t_section(ray.origin[2], ray.direction[2], root->min_z);
+	float t_maxz = t_section(ray.origin[2], ray.direction[2], root->max_z);
+	GzCoord intersection_minz = { ray.origin[0] + ray.direction[0] * t_minz, ray.origin[1] + ray.direction[1] * t_minz, root->min_z };
+	GzCoord intersection_maxz = { ray.origin[0] + ray.direction[0] * t_maxz, ray.origin[1] + ray.direction[1] * t_maxz, root->max_z };
+	if (insideBoundingBox(intersection_minz, root))
+	{
+		bmin = min(bmin, t_minz);
+		bmax = max(bmax, t_minz);
+	}
+	if (insideBoundingBox(intersection_maxz, root))
+	{
+		bmin = min(bmin, t_maxz);
+		bmax = max(bmax, t_maxz);
+	}
+	//yz plane
+	float t_minx = t_section(ray.origin[0], ray.direction[0], root->min_x);
+	float t_maxx = t_section(ray.origin[0], ray.direction[0], root->max_x);
+	GzCoord intersection_minx = { root->min_x, ray.origin[1] + ray.direction[1] * t_minx, ray.origin[2] + ray.direction[2] * t_minx };
+	GzCoord intersection_maxx = { root->max_x, ray.origin[1] + ray.direction[1] * t_maxx, ray.origin[2] + ray.direction[2] * t_maxx };
+	if (insideBoundingBox(intersection_minx, root))
+	{
+		bmin = min(bmin, t_minx);
+		bmax = max(bmax, t_minx);
+	}
+	if (insideBoundingBox(intersection_maxx, root))
+	{
+		bmin = min(bmin, t_maxx);
+		bmax = max(bmax, t_maxx);
+	}
+	// xz plane
+	float t_miny = t_section(ray.origin[1], ray.direction[1], root->min_y);
+	float t_maxy = t_section(ray.origin[1], ray.direction[1], root->max_y);
+	GzCoord intersection_miny = { ray.origin[0] + ray.direction[0] * t_miny, root->min_y, ray.origin[2] + ray.direction[2] * t_miny };
+	GzCoord intersection_maxy = { ray.origin[0] + ray.direction[0] * t_maxy, root->max_y, ray.origin[2] + ray.direction[2] * t_maxy };
+	if (insideBoundingBox(intersection_miny, root))
+	{
+		bmin = min(bmin, t_miny);
+		bmax = max(bmax, t_miny);
+	}
+	if (insideBoundingBox(intersection_maxy, root))
+	{
+		bmin = min(bmin, t_maxy);
+		bmax = max(bmax, t_maxy);
+	}
+	
+	return GzRayTreeIntersect(root, intersectTriangle, intersectPoint, bmin, bmax);
 }
 
 

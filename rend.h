@@ -101,7 +101,6 @@ public:
 	int RayIntersection(GzTri triangle);
 	int Rasterize(GzTri triangle); 
 
-	boolean GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
 	// Alternate method using BSP Tree
 	// define BSP struct
 	struct BSP_tree
@@ -134,8 +133,14 @@ public:
 	bool insideBoundingBox(GzCoord vertex, BSP_tree* node);
 	// Create BSP Tree
 	void GzCreateBSPTree(BSP_tree* node, int depth);
-	//Find frontest intersection
+	// Traverse in BSP Tree
+	bool GzRayTreeIntersect(BSP_tree* node, GzTri*& triangle, GzCoord intersection, float min, float max);
+	// Find frontest intersection
 	bool GzFindFrontestIntersection_BSP(GzTri*& triangle, GzCoord intersection);
+	// Find frontest intersection from candidate list
+	bool GzFindFrontestFromList(GzTri*& triangle, GzCoord intersection, vector<int>& triangles);
+
+	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
 
 
 
