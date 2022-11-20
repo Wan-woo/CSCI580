@@ -1182,6 +1182,7 @@ int GzRender::Rasterize(GzTri triangle)
 int GzRender::AssignTriangleToPixel(int i , int j)
 {
 	GzPixel pixel = pixelbuffer[j * xres + i];
+
 	//get all the triangles pixel is a part of, and the hit point value
 	for (int t = 0; t < triIndex; t++)
 	{
@@ -1244,32 +1245,22 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 		computeCoeffcient(temp[to][0], temp[to][1], temp[from][0] - temp[to][0], temp[from][1] - temp[to][1], edges[i].A, edges[i].B, edges[i].C);
 	}
 
+	//Check if pixel is in triangle bounds
 	if (!isInside(i, j, edges))
 	{
+		return -1;
+	}
+
+	//if in bounds: check if there is an intersection between ray and triangle
+	tValue = GzCheckForTriangleIntersection(triangle, hitPoint);
+
+	if (tValue > 0)
+	{
+		//return tValue ONLY if hit point exists and is in the triangle
 		return tValue;
 	}
 
-	//if in bounds: shoot a ray from the camera to the pixel
-	//memcpy((void*)ray.origin, (void*)m_camera.position, sizeof(GzCoord));
-	//GzCoord pix = { i, j, pixel.z };
-	//minus(pix, ray.origin, ray.direction);
-	//normalize(ray.direction, ray.direction);
-
-	//Check if there is an intersection between the ray and triangle
-	tValue = GzCheckForTriangleIntersection(triangle, hitPoint);
-
-	//if it intersects and is inside the triangle
-	//save the hit point if the hit point is in the triangle
-	if (tValue > 0)
-	{
-		//memcpy((void*)pixel.hitPoint, (void*)hitPoint, sizeof(GzCoord));
-		pixel.tValue = tValue;
-
-		//return true ONLY if hit point exists and is in the triangle
-		return true;
-	}
-
-	return false;
+	return -1;
 }
 
 int GzRender::ComputeRaycastColor()
@@ -1345,7 +1336,7 @@ int GzRender::ComputeRaycastColor()
 
 			*/
 			//GzPut(i, j, color[0], color[1], color[2], pixel.alpha, pixel.z);
-			GzPut(i, j, 0, 0, 0, 1, pixel.z);
+			GzPut(i, j, 1, 1, 1, 1, pixel.z);
 		}
 	}
 	
