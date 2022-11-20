@@ -592,10 +592,12 @@ void GzRender::GzComputeColor(GzCoord coord, GzColor color)
 		{
 			continue;
 		}
+
 		nl = GzDot(coord, lights[i].direction);
 		GzCoord R = { 2 * nl * coord[0] - lights[i].direction[0], 2 * nl * coord[1] - lights[i].direction[1], 2 * nl * coord[2] - lights[i].direction[2] };
 		float re = GzDot(R, eye);
 		re = clamp(0, 1, re);
+
 		specular[0] += lights[i].color[0] * pow(re, spec);
 		specular[1] += lights[i].color[1] * pow(re, spec);
 		specular[2] += lights[i].color[2] * pow(re, spec);
@@ -617,6 +619,7 @@ void GzRender::GzComputePlane(GzCoord* vertices, GzCoord* coeff)
 	float b1 = vertices[1][1] - vertices[0][1]; //y1
 	float a2 = vertices[2][0] - vertices[0][0]; //X2
 	float b2 = vertices[2][1] - vertices[0][1]; //Y2
+
 	for (int i = 0; i < 3; i++)
 	{
 		float c1 = coeff[1][i] - coeff[0][i];
@@ -705,12 +708,15 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			GzComputeColor(coord1, trianglebuffer[triIndex].colors[1]);
 			GzComputeColor(coord2, trianglebuffer[triIndex].colors[2]);
 		}
-		/*else if (interp_mode == GZ_NORMALS)
+		else if (interp_mode == GZ_NORMALS)
 		{
-			memcpy((void*)norms[0], (void*)coord0, sizeof(GzCoord));
+			GzCoord coord = { coord0[0], coord0[1], coord0[2] };
+			GzComputeColor(coord, trianglebuffer[triIndex].colors[0]);
+
+			/*memcpy((void*)norms[0], (void*)coord0, sizeof(GzCoord));
 			memcpy((void*)norms[1], (void*)coord1, sizeof(GzCoord));
-			memcpy((void*)norms[2], (void*)coord2, sizeof(GzCoord));
-		}*/
+			memcpy((void*)norms[2], (void*)coord2, sizeof(GzCoord));*/
+		}
 	}
 	if (nameList[0] == GZ_POSITION)
 	{
@@ -824,6 +830,9 @@ int GzRender::GzRaytracing()
 	}
 
 	ComputeRaycastColor();
+
+	//for (int i=0; i<triIndex; i++)
+	//	Rasterize(trianglebuffer[i]);
 	
 	
 
@@ -1155,7 +1164,8 @@ int GzRender::Rasterize(GzTri triangle)
 				float v = (-uv_plane[1][0] * x - uv_plane[1][1] * y - uv_plane[1][3]) / uv_plane[1][2];
 				float z_prime = z / (MAXINT - z);
 				GzColor normColor;
-				tex_fun(u * (z_prime + 1), v * (z_prime + 1), normColor);
+				if (tex_fun != 0)
+					tex_fun(u * (z_prime + 1), v * (z_prime + 1), normColor);
 				if (interp_mode == GZ_COLOR)
 				{
 					flatcolor[0] = normColor[0] * (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
@@ -1164,8 +1174,11 @@ int GzRender::Rasterize(GzTri triangle)
 				}
 				else if (interp_mode == GZ_NORMALS)
 				{
-					memcpy((void*)Kd, (void*)normColor, sizeof(GzColor));
-					memcpy((void*)Ka, (void*)normColor, sizeof(GzColor));
+					if (tex_fun != 0)
+					{
+						memcpy((void*)Kd, (void*)normColor, sizeof(GzColor));
+						memcpy((void*)Ka, (void*)normColor, sizeof(GzColor));
+					}
 					GzCoord temp_norm;
 					temp_norm[0] = (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
 					temp_norm[1] = (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
@@ -1188,6 +1201,15 @@ int GzRender::Rasterize(GzTri triangle)
 	}
 
 	return GZ_SUCCESS;
+}
+
+bool GzRender::PixelTriangleCheck(GzTri* triangle, GzPixel pixel)
+{
+	if (pixel.triangle != nullptr)
+	{
+		return (pixel.triangle == triangle);
+	}
+	return false;
 }
 
 int GzRender::AssignTriangleToPixel(int i , int j)
@@ -1275,8 +1297,7 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 }
 
 int GzRender::ComputeRaycastColor()
-{
-	
+{	
 	//iterate over the pixels
 	for (int i = 0; i < xres; i++)
 	{
@@ -1284,85 +1305,97 @@ int GzRender::ComputeRaycastColor()
 		{
 			GzPixel pixel = pixelbuffer[j * xres + i];
 
-			if (pixel.triangle == nullptr || pixel.tValue < 0)
-				continue;
+			if (pixel.triangle != nullptr)
+			{
+				//Compute the color at the current pixel
+				ColorThePixel(*pixel.triangle, i, j);
 
-			/*
-			//compute pixel's normal (same as usual rasterize)
-			GzCoord coord = { 0,0,0 };
-			GzTri* triangle = pixelbuffer[j * xres + i].triangle;
-			ComputePixelNormal(i, j, *triangle, coord);
-
-			//iterate over the lights
-			GzColor color = { 0,0,0 };
-			GzCoord eye = { 0, 0, -1 };
-			GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 }, ambient = { 0, 0, 0 };
-			for (int l = 0; l < numlights; l++)
-			{				
-				//check if pixel is a shadow by checking for intersection
-				bool result = IsPixelAShadow(pixel, lights[l]);
-
-				//if pixel is not a shadow - perform calculations
-				if (result)
-				{
-					continue;
-				}
-
-				float nl = GzDot(coord, lights[i].direction);
-				float ne = GzDot(coord, eye);
-				if (nl >= 0 && ne >= 0)
-				{
-					// R dot E inside this or not?
-					// do nothing
-					// equal 0 is fine??
-				}
-				else if (nl <= 0 && ne <= 0)
-				{
-					coord[0] = -coord[0];
-					coord[1] = -coord[1];
-					coord[2] = -coord[2];
-				}
-				else
-				{
-					continue;
-				}
-
-				nl = GzDot(coord, lights[l].direction);
-				GzCoord R = { 2 * nl * coord[0] - lights[l].direction[0], 2 * nl * coord[1] - lights[l].direction[1], 2 * nl * coord[2] - lights[l].direction[2] };
-				float re = GzDot(R, eye);
-				re = clamp(0, 1, re);
-				specular[0] += lights[l].color[0] * pow(re, spec);
-				specular[1] += lights[l].color[1] * pow(re, spec);
-				specular[2] += lights[l].color[2] * pow(re, spec);
-				diffuse[0] += lights[l].color[0] * nl;
-				diffuse[1] += lights[l].color[1] * nl;
-				diffuse[2] += lights[l].color[2] * nl;
+				//this->GzPut(i, j, ctoi(pixel.triangle->colors[0][0]), ctoi(pixel.triangle->colors[0][1]), ctoi(pixel.triangle->colors[0][2]), 1, pixel.z);
 			}
-			color[0] = Ks[0] * specular[0] + Kd[0] * diffuse[0] + ambientlight.color[0] * Ka[0];
-			color[1] = Ks[1] * specular[1] + Kd[1] * diffuse[1] + ambientlight.color[1] * Ka[1];
-			color[2] = Ks[2] * specular[2] + Kd[2] * diffuse[2] + ambientlight.color[2] * Ka[2];
-			color[0] = clamp(0, 1, color[0]);
-			color[1] = clamp(0, 1, color[1]);
-			color[2] = clamp(0, 1, color[2]);	
 
-			*/
-			//GzPut(i, j, color[0], color[1], color[2], pixel.alpha, pixel.z);
-			GzPut(i, j, 1, 1, 1, 1, pixel.z);
 		}
+	}	
+	
+	return GZ_SUCCESS;
+}
+
+int GzRender::ColorThePixel(GzTri triangle, int i, int j)
+{
+	GzCoord normal;
+	ComputePixelNormal(i, j, triangle, normal);
+
+	GzCoord eye = { 0, 0, -1 };
+	GzColor color = { 0, 0, 0 };
+	GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 }, ambient = { 0, 0, 0 };
+	for (int l = 0; l < numlights; l++)
+	{
+		float nl = GzDot(normal, lights[l].direction);
+		float ne = GzDot(normal, eye);
+		if (nl >= 0 && ne >= 0)
+		{
+			// R dot E inside this or not?
+			// do nothing
+			// equal 0 is fine??
+		}
+		else if (nl <= 0 && ne <= 0)
+		{
+			normal[0] = -normal[0];
+			normal[1] = -normal[1];
+			normal[2] = -normal[2];
+		}
+		else
+		{
+			continue;
+		}
+
+		nl = GzDot(normal, lights[l].direction);
+		GzCoord R = { 2 * nl * normal[0] - lights[l].direction[0], 2 * nl * normal[1] - lights[l].direction[1], 2 * nl * normal[2] - lights[l].direction[2] };
+		float re = GzDot(R, eye);
+		re = clamp(0, 1, re);
+
+		specular[0] += lights[l].color[0] * pow(re, spec);
+		specular[1] += lights[l].color[1] * pow(re, spec);
+		specular[2] += lights[l].color[2] * pow(re, spec);
+		diffuse[0] += lights[l].color[0] * nl;
+		diffuse[1] += lights[l].color[1] * nl;
+		diffuse[2] += lights[l].color[2] * nl;
 	}
-	
-	
+
+	color[0] = Ks[0] * specular[0] + Kd[0] * diffuse[0] + ambientlight.color[0] * Ka[0];
+	color[1] = Ks[1] * specular[1] + Kd[1] * diffuse[1] + ambientlight.color[1] * Ka[1];
+	color[2] = Ks[2] * specular[2] + Kd[2] * diffuse[2] + ambientlight.color[2] * Ka[2];
+	color[0] = clamp(0, 1, color[0]);
+	color[1] = clamp(0, 1, color[1]);
+	color[2] = clamp(0, 1, color[2]);
+
+	this->GzPut(i, j, ctoi(color[0]), ctoi(color[1]), ctoi(color[2]), 1, pixelbuffer[j * xres + i].z);
+
 	return GZ_SUCCESS;
 }
 
 int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 {
+	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.vertices[0][2] + 1), triangle.uv[0][1] / (triangle.vertices[0][2] + 1), 1},
+			{triangle.uv[1][0] / (triangle.vertices[1][2] + 1), triangle.uv[1][1] / (triangle.vertices[1][2] + 1), 1},
+			{triangle.uv[2][0] / (triangle.vertices[2][2] + 1), triangle.uv[2][1] / (triangle.vertices[2][2] + 1), 1} };
+	float uv_plane[2][4];
+	GzComputePlane(triangle.vertices, coeff, uv_plane);
+
+	// try to compute global plane normal
+	float Az, Bz, Cz, Dz;
+	float a1 = triangle.vertices[1][0] - triangle.vertices[0][0];
+	float b1 = triangle.vertices[1][1] - triangle.vertices[0][1];
+	float c1 = triangle.vertices[1][2] - triangle.vertices[0][2];
+	float a2 = triangle.vertices[2][0] - triangle.vertices[0][0];
+	float b2 = triangle.vertices[2][1] - triangle.vertices[0][1];
+	float c2 = triangle.vertices[2][2] - triangle.vertices[0][2];
+	computePlane(triangle.vertices[0][0], triangle.vertices[0][1], triangle.vertices[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
+
 	GzComputePlane(triangle.vertices, triangle.normals);
 
 	normal[0] = (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
 	normal[1] = (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];
 	normal[2] = (-planes[2][0] * i - planes[2][1] * j - planes[2][3]) / planes[2][2];
-	
 	float d = GzCoordLength(normal);
 	normal[0] = normal[0] / d;
 	normal[1] = normal[1] / d;
