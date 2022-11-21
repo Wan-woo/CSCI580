@@ -1231,6 +1231,7 @@ int GzRender::AssignTriangleToPixel(int i , int j)
 		tvalue = IsPixelInTriangle(i, j, pixel, triangle, hit);
 		if (tvalue > 0)
 		{
+			PointAtTValue(tvalue, hit); //get the hit point
 			float terrific = tvalue; //this line is here for a debug
 
 			//if pixel is in the triangle: 
@@ -1335,6 +1336,11 @@ int GzRender::ColorThePixel(GzTri triangle, int i, int j)
 	GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 }, ambient = { 0, 0, 0 };
 	for (int l = 0; l < numlights; l++)
 	{
+		//Check for shadow - omit light if intersection found
+		bool isShadow = IsPixelAShadow(pixelbuffer[j * xres + i], lights[l]);
+		if (isShadow)
+			continue;
+
 		float nl = GzDot(normal, lights[l].direction);
 		float ne = GzDot(normal, eye);
 		if (nl >= 0 && ne >= 0)
