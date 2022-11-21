@@ -98,7 +98,6 @@ public:
 	//Ray tracing
 	int GzRaytracing();
 	int PointAtTValue(float t, GzCoord coord);
-	int RayIntersection(GzTri triangle);
 	int Rasterize(GzTri triangle); 
 
 	// Alternate method using BSP Tree
@@ -138,7 +137,7 @@ public:
 	// Find frontest intersection
 	bool GzFindFrontestIntersection_BSP(GzTri*& triangle, GzCoord intersection);
 	// Find frontest intersection from candidate list
-	bool GzFindFrontestFromList(GzTri*& triangle, GzCoord intersection, vector<int>& triangles);
+	bool GzFindFrontestFromList(GzTri*& triangle, GzCoord intersection, BSP_tree* node);
 
 	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
 
