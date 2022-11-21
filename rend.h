@@ -91,11 +91,12 @@ public:
 
 	//Ray tracing
 	int GzRaytracing();
-	int CastRay(); 
+	int CastRay(int x, int y); 
 	bool Trace(GzIntersectInfo isect);
 	int PointAtTValue(float t, GzCoord coord);
 	bool Intersect(GzIntersectInfo isect);
-	bool RayTriangleIntersection(GzTri triangle, float t);
+	bool RayTriangleIntersection(GzTri triangle, float* t);
+	int CalculatePointNormal(GzCoord hitPoint, GzTri triangle, GzCoord normal);
 
 	int Rasterize(GzTri triangle);
 	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);

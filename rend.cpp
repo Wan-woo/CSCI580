@@ -759,10 +759,8 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 }
 
 int GzRender::GzRaytracing()
-{
-	
+{	
 	//first step of raytracing -> iterate through pixels and create primary rays
-
 	float scale = tan((m_camera.FOV * 0.5) / (PI / 180)); 
 	float aspectRatio = xres / (float)yres; 
 	
@@ -778,12 +776,12 @@ int GzRender::GzRaytracing()
 			float y = (1 - 2 * (j + 0.5) / (float)yres) * scale; 
 
 			//use these values for camera direction and transform them before putting in ray.direction
-			float camDir[3] = { x, y, -1 };
+			GzCoord camDir = { x, y, -1 };
 			GzComputeCoord(Xnorm[matlevel - 1], camDir, ray.direction); 
 			normalize(ray.direction, ray.direction); 
 
 			//use this ray to cast a line from the camera to the object
-			CastRay(); 
+			CastRay(i, j); 
 		}
 	}
 
@@ -821,7 +819,7 @@ int GzRender::GzRaytracing()
 	return GZ_SUCCESS;
 }
 
-int GzRender::CastRay()
+int GzRender::CastRay(int x, int y)
 {
 	//create an intersection for each pixel that stores data on the intersection point
 	//can also possibly store triangle it intersects with?
@@ -834,13 +832,29 @@ int GzRender::CastRay()
 	if (Intersect(isect))
 	{
 		//there was an intersection! start doing intersection things!
-		float hitPoint[3] = { ray.origin[0] + ray.direction[0] * isect.tNear,
+		GzCoord hitPoint = { ray.origin[0] + ray.direction[0] * isect.tNear,
 				ray.origin[1] + ray.direction[1] * isect.tNear, 
 				ray.origin[2] + ray.direction[2] * isect.tNear};
+		//PointAtTValue(isect.tNear, hitPoint);
 
 		//STOPPED HERE -> MUST DO SOMETHING WITH HIT POINT/HIT NORMAL AND USE IT TO CALCULATE LIGHTS!
+		
+		//Must use the hit triangle's normals to interpolate the hit point's normal value on the surface
+		GzCoord normal = { 0,0,0 };
+		CalculatePointNormal(hitPoint, *isect.hitTriangle, normal);
+
+		//Then compute color based on the normal
+
+
 		//Figure out what illuminate function is for? as it takes in the hit point and light direction..
+				//ANSWER: they are accounting for 2 different kinds of lights (point and distant/directional), which both implement an illuminate function
+				//Illuminate appears to be used to calculate how much light reaches the hit point (calculate intensity of light at a point)
+		
 		//trace takes in hit point + normal but why?
+				//Trace esentially takes a ray (origin + direction), a list of objects, and an enum for ray type (primary, shadow, etc.)
+				//In the lighting/color equation call to trace, the hit point + normal are being used to calculate origin 
+				//as some point a certain bias (distance) above the surface at the OG hit point
+
 		//they include texture calculations that we can leave out for now.. no need to "compute the pattern"
 		//just need to calculate the color and assign it
 	}
@@ -850,8 +864,50 @@ int GzRender::CastRay()
 	return GZ_SUCCESS; 
 }
 
+int GzRender::CalculatePointNormal(GzCoord hitPoint, GzTri triangle, GzCoord normal)
+{
+	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.vertices[0][2] + 1), triangle.uv[0][1] / (triangle.vertices[0][2] + 1), 1},
+			{triangle.uv[1][0] / (triangle.vertices[1][2] + 1), triangle.uv[1][1] / (triangle.vertices[1][2] + 1), 1},
+			{triangle.uv[2][0] / (triangle.vertices[2][2] + 1), triangle.uv[2][1] / (triangle.vertices[2][2] + 1), 1} };
+	float uv_plane[2][4];
+	GzComputePlane(triangle.vertices, coeff, uv_plane);
+
+	// try to compute global plane normal
+	float Az, Bz, Cz, Dz;
+	float a1 = triangle.vertices[1][0] - triangle.vertices[0][0];
+	float b1 = triangle.vertices[1][1] - triangle.vertices[0][1];
+	float c1 = triangle.vertices[1][2] - triangle.vertices[0][2];
+	float a2 = triangle.vertices[2][0] - triangle.vertices[0][0];
+	float b2 = triangle.vertices[2][1] - triangle.vertices[0][1];
+	float c2 = triangle.vertices[2][2] - triangle.vertices[0][2];
+	computePlane(triangle.vertices[0][0], triangle.vertices[0][1], triangle.vertices[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
+
+	GzComputePlane(triangle.vertices, triangle.normals);
+
+	normal[0] = (-planes[0][0] * hitPoint[X] - planes[0][1] * hitPoint[Y] - planes[0][3]) / planes[0][2];
+	normal[1] = (-planes[1][0] * hitPoint[X] - planes[1][1] * hitPoint[Y] - planes[1][3]) / planes[1][2];
+	normal[2] = (-planes[2][0] * hitPoint[X] - planes[2][1] * hitPoint[Y] - planes[2][3]) / planes[2][2];
+	float d = GzCoordLength(normal);
+	normal[0] = normal[0] / d;
+	normal[1] = normal[1] / d;
+	normal[2] = normal[2] / d;
+
+	return GZ_SUCCESS;
+
+	return GZ_SUCCESS;
+}
+
 bool GzRender::Trace(GzIntersectInfo isect)
 {
+	/* OVERALL TRACE LOGIC:
+	* 
+	* Loop over all objects in the scene:
+	*		Shoot primary ray at object and see if it has an intersection
+	*		If intersects:
+	*			store intersection data (object, tvalue, etc.) 
+	*/
+
+
 	/*
 
 	float tNear = MAXINT; 
@@ -874,26 +930,24 @@ bool GzRender::Trace(GzIntersectInfo isect)
 
 
 bool GzRender::Intersect(GzIntersectInfo isect)
-{
-
-	//int j = 0; 
+{ 
 	bool isectDetected = false; 
 
 	for (int i = 0; i < triIndex; i++)
 	{
-		float t = MAXINT; 
+		float *t;
+		*t = MAXINT;
 
 		if (RayTriangleIntersection(trianglebuffer[i], t))
 		{
 			//there was an intersection with a triangle
 			isect.hitTriangle = &trianglebuffer[i]; 
-			isect.tNear = t; 
-			triIndex = i; 
+			isect.tNear = *t; 
+			isect.triIndex = i;
 
 			//uv.x = u;
 			//uv.y = v; 
-			isectDetected = true; 
-			
+			isectDetected = true; 			
 		}
 	}
 
@@ -953,9 +1007,8 @@ bool GzRender::Intersect(GzIntersectInfo isect)
 	return GZ_FAILURE;
 }
 
-bool GzRender::RayTriangleIntersection(GzTri triangle, float t)
+bool GzRender::RayTriangleIntersection(GzTri triangle, float* t)
 {
-
 	//calculate intersection points
 
 	float v0v1[3];
@@ -984,7 +1037,7 @@ bool GzRender::RayTriangleIntersection(GzTri triangle, float t)
 	float v = dotProduct(ray.direction, qvec) * invDet;
 	if (v < 0 || u + v > 1) return false; 
 
-	t = dotProduct(v0v2, qvec) * invDet; 
+	*t = dotProduct(v0v2, qvec) * invDet; 
 
 	return (t > 0) ? true : false; 
 
