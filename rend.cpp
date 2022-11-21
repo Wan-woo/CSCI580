@@ -182,6 +182,7 @@ int GzRender::GzBeginRender()
 */ 
 	float d_reciprocal = tan(m_camera.FOV * PI / (180 * 2));
 	GzMatrix Xpi_t = { {1, 0, 0, 0},{0, 1, 0, 0},{0, 0, d_reciprocal, 0},{0, 0, d_reciprocal, 1} };
+	memcpy((void*)m_camera.Xpi, (void*)Xpi_t, sizeof(GzMatrix));
 	GzCoord CL = { m_camera.lookat[0] - m_camera.position[0], m_camera.lookat[1] - m_camera.position[1], m_camera.lookat[2] - m_camera.position[2] };
 	float lookatLength = GzCoordLength(CL);
 	GzCoord Zaxis = { CL[0] / lookatLength, CL[1] / lookatLength, CL[2] / lookatLength };
@@ -194,9 +195,14 @@ int GzRender::GzBeginRender()
 					   {Yaxis[0], Yaxis[1], Yaxis[2], -GzDot(Yaxis,m_camera.position)},
 					   {Zaxis[0], Zaxis[1], Zaxis[2], -GzDot(Zaxis,m_camera.position)},
 					   {0, 0, 0, 1} };
+	memcpy((void*)m_camera.Xiw, (void*)Xiw_t, sizeof(GzMatrix));
+
 	GzPushMatrix(Xsp);
 	GzPushMatrix(Xpi_t);
 	GzPushMatrix(Xiw_t);
+
+	MatrixMultiply(Xsp, Xpi_t, Xspi);
+
 	return GZ_SUCCESS;
 }
 
@@ -804,7 +810,8 @@ int GzRender::GzRaytracing()
 
 	//calculate origin of the vector based on camera
 	//translate to screen space using computer coord and matrix
-	GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin);
+	//GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin);
+	GzComputeCoord(Xspi, m_camera.position, ray.origin);
 
 
 	//iterate through the pixels to compute a primary ray for each
@@ -815,21 +822,24 @@ int GzRender::GzRaytracing()
 		{
 			//calculate ray direction and transform into screen space
 
-			float x = (2 * (j + 0.5) / xres - 1) * aspectRatio * scale;		
+			/*float x = (2 * (j + 0.5) / xres - 1) * aspectRatio * scale;		
 			float y = (1 - 2 * (i + 0.5) / yres) * scale; 
 
 			ray.direction[0] = x; 
 			ray.direction[1] = y;
 			ray.direction[2] = -1;
+			
+			GzComputeCoord(Xnorm[matlevel - 1], ray.direction, ray.direction); */
+			
+			GzCoord pix = { i,j, -1 };
+			minus(pix, ray.origin, ray.direction);
 
-			GzComputeCoord(Xnorm[matlevel - 1], ray.direction, ray.direction); 
 
 			//normalize because direction vector
 			normalize(ray.direction, ray.direction); 
 
 			//using the primary ray calculated per pixel -> start raytracing 
 			AssignTriangleToPixel(i, j);
-
 		}
 	}
 

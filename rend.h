@@ -32,6 +32,7 @@ public:
 	GzMatrix		Ximage[MATLEVELS];	/* stack of xforms (Xsm) */
 	GzMatrix		Xnorm[MATLEVELS];	/* xforms for norms (Xim) */
 	GzMatrix		Xsp;		        /* NDC to screen (pers-to-screen) */
+	GzMatrix		Xspi;
 	GzColor		flatcolor;          /* color state for flat shaded triangles */
 	int			interp_mode;
 	int			numlights;
@@ -146,6 +147,22 @@ public:
 		imageY ::= (pictureBox.height - scaledHeight) / 2*/
 
 		
+	}
+	void GzRender::MatrixMultiply(GzMatrix m1, GzMatrix m2, GzMatrix result)
+	{
+		GzMatrix temp;
+		for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				temp[i][j] = 0;
+				for (int k = 0; k < 4; k++)
+				{
+					temp[i][j] += m1[i][k] * m2[k][j];
+				}
+			}
+		}
+		memcpy((void*)result, (void*)temp, sizeof(GzMatrix));
 	}
 
 };
