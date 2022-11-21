@@ -91,8 +91,12 @@ public:
 
 	//Ray tracing
 	int GzRaytracing();
+	int CastRay(); 
+	bool Trace(GzIntersectInfo isect);
 	int PointAtTValue(float t, GzCoord coord);
-	int RayIntersection(GzTri triangle);
+	bool Intersect(GzIntersectInfo isect);
+	bool RayTriangleIntersection(GzTri triangle, float t);
+
 	int Rasterize(GzTri triangle);
 	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)

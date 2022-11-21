@@ -117,7 +117,7 @@ typedef	struct {
 #ifndef GZ_TRIANGLE
 typedef struct {
 	GzCoord vertices[3];
-	GzCoord imageVerts[3];
+	//GzCoord imageVerts[3];
 	GzCoord normals[3];
 	GzTextureIndex uv[3];
 	GzColor colors[3];
@@ -132,4 +132,14 @@ typedef struct {
 	GzCoord direction;
 } GzRay;
 #define GZ_RAY
+#endif;
+
+#ifndef GZ_INTERSECTION
+typedef struct {
+	GzTri* hitTriangle = nullptr; 
+	float tNear = MAXINT; 
+	GzTextureIndex uv[3]; 
+	int triIndex = 0;
+} GzIntersectInfo;
+#define GZ_INTERSECTION
 #endif;
