@@ -190,6 +190,9 @@ int GzRender::GzBeginRender()
 	GzPushMatrix(Xsp);
 	GzPushMatrix(Xpi_t);
 	GzPushMatrix(Xiw_t);
+
+	MatrixMult(Xsp, Xpi_t, Xsi); 
+
 	return GZ_SUCCESS;
 }
 
@@ -758,15 +761,65 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 	return GZ_SUCCESS;
 }
 
+void GzRender::MatrixMult(GzMatrix &mat1, GzMatrix &mat2, GzMatrix &result)
+{
+	//matrix multiplication helper function
+
+	GzMatrix temp;
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			temp[i][j] = 0;
+			for (int k = 0; k < 4; k++)
+			{
+				temp[i][j] += mat1[i][k] * mat2[k][j];
+			}
+		}
+	}
+
+	memcpy((void*)result, (void*)temp, sizeof(GzMatrix));
+}
+
+void GzRender::MultVecMatrix(const GzMatrix& mat, const GzCoord& src, GzCoord& dst)
+{
+	float a, b, c, w = 1;
+
+	a = src[0] * mat[0][0] + src[1] * mat[1][0] + src[2] * mat[2][0] + mat[3][0];
+	b = src[0] * mat[0][1] + src[1] * mat[1][1] + src[2] * mat[2][1] + mat[3][1];
+	c = src[0] * mat[0][2] + src[1] * mat[1][2] + src[2] * mat[2][2] + mat[3][2];
+	w = src[0] * mat[0][3] + src[1] * mat[1][3] + src[2] * mat[2][3] + mat[3][3];
+
+	dst[X] = a / w;
+	dst[Y] = b / w;
+	dst[Z] = c / w;
+	
+}
+
+void GzRender::MultDirMatrix(const GzMatrix& mat, const GzCoord& src, GzCoord& dst) const
+{
+	float a, b, c;
+
+	a = src[0] * mat[0][0] + src[1] * mat[1][0] + src[2] * mat[2][0];
+	b = src[0] * mat[0][1] + src[1] * mat[1][1] + src[2] * mat[2][1];
+	c = src[0] * mat[0][2] + src[1] * mat[1][2] + src[2] * mat[2][2];
+
+	dst[X] = a;
+	dst[Y] = b;
+	dst[Z] = c;
+}
+
 int GzRender::GzRaytracing()
 {	
 	//first step of raytracing -> iterate through pixels and create primary rays
-	float scale = tan((m_camera.FOV * 0.5) / (PI / 180)); 
+	float scale = tan((m_camera.FOV * 0.5) * (PI / 180)); 
 	float aspectRatio = xres / (float)yres; 
 	
 	//need ray for direction/origin still
 	//use camera position as origin and transform it into screen space then store in ray.origin
-	GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin); 
+	//GzComputeCoord(Ximage[matlevel - 1], m_camera.position, ray.origin); 
+
+	MultVecMatrix(Xsi, m_camera.position, ray.origin); 
 
 	for (int j = 0; j < yres; ++j)
 	{
@@ -776,8 +829,9 @@ int GzRender::GzRaytracing()
 			float y = (1 - 2 * (j + 0.5) / (float)yres) * scale; 
 
 			//use these values for camera direction and transform them before putting in ray.direction
-			GzCoord camDir = { x, y, -1 };
-			GzComputeCoord(Xnorm[matlevel - 1], camDir, ray.direction); 
+			GzCoord camDir = { i, j, -1 };
+			minus(camDir, ray.origin, camDir);
+			MultDirMatrix(Xsi, camDir, ray.direction); 
 			normalize(ray.direction, ray.direction); 
 
 			//use this ray to cast a line from the camera to the object
@@ -928,21 +982,22 @@ bool GzRender::Trace(GzIntersectInfo isect)
 	return true; 
 }
 
-
 bool GzRender::Intersect(GzIntersectInfo isect)
 { 
 	bool isectDetected = false; 
 
 	for (int i = 0; i < triIndex; i++)
 	{
-		float *t;
-		*t = MAXINT;
+		float t = MAXINT;
+		//*t = INFINITY;
 
-		if (RayTriangleIntersection(trianglebuffer[i], t))
+		bool result = RayTriangleIntersection(trianglebuffer[i], t);
+
+		if (result)
 		{
 			//there was an intersection with a triangle
 			isect.hitTriangle = &trianglebuffer[i]; 
-			isect.tNear = *t; 
+			isect.tNear = t; 
 			isect.triIndex = i;
 
 			//uv.x = u;
@@ -1007,7 +1062,7 @@ bool GzRender::Intersect(GzIntersectInfo isect)
 	return GZ_FAILURE;
 }
 
-bool GzRender::RayTriangleIntersection(GzTri triangle, float* t)
+bool GzRender::RayTriangleIntersection(GzTri triangle, float &t)
 {
 	//calculate intersection points
 
@@ -1027,17 +1082,20 @@ bool GzRender::RayTriangleIntersection(GzTri triangle, float* t)
 
 	float invDet = 1 / det; 
 
+	//never passes the first check 
 	float tvec[3];
 	minus(ray.origin, triangle.vertices[0], tvec);
 	float u = dotProduct(tvec, pvec) * invDet; 
 	if (u < 0 || u > 1) return false; 
 
+	//doesn't appear to pass this check so it never hits t 
+	//to assign it later on
 	float qvec[3];
 	crossProduct(tvec, v0v1, qvec);
 	float v = dotProduct(ray.direction, qvec) * invDet;
 	if (v < 0 || u + v > 1) return false; 
 
-	*t = dotProduct(v0v2, qvec) * invDet; 
+	t = dotProduct(v0v2, qvec) * invDet; 
 
 	return (t > 0) ? true : false; 
 

@@ -32,6 +32,7 @@ public:
 	GzMatrix		Ximage[MATLEVELS];	/* stack of xforms (Xsm) */
 	GzMatrix		Xnorm[MATLEVELS];	/* xforms for norms (Xim) */
 	GzMatrix		Xsp;		        /* NDC to screen (pers-to-screen) */
+	GzMatrix		Xsi;				/*image to screen projection*/
 	GzColor		flatcolor;          /* color state for flat shaded triangles */
 	int			interp_mode;
 	int			numlights;
@@ -90,12 +91,16 @@ public:
 
 
 	//Ray tracing
+	void MultVecMatrix(const GzMatrix& mat, const GzCoord& src, GzCoord& dst);
+	void MultDirMatrix(const GzMatrix& mat, const GzCoord& src, GzCoord& dst) const;
+	void MatrixMult(GzMatrix& mat1, GzMatrix& mat2, GzMatrix& result); 
+
 	int GzRaytracing();
 	int CastRay(int x, int y); 
 	bool Trace(GzIntersectInfo isect);
 	int PointAtTValue(float t, GzCoord coord);
 	bool Intersect(GzIntersectInfo isect);
-	bool RayTriangleIntersection(GzTri triangle, float* t);
+	bool RayTriangleIntersection(GzTri triangle, float &t);
 	int CalculatePointNormal(GzCoord hitPoint, GzTri triangle, GzCoord normal);
 
 	int Rasterize(GzTri triangle);
