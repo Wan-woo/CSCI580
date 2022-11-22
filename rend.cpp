@@ -764,14 +764,14 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		//save plane coeff to triangle buffer
 		//compute triangle (plane) normal using: crossProduct(1, 2, result)
 		GzCoord edge1, edge2, edge3;
-		minus(trianglebuffer[triIndex].imageVerts[1], trianglebuffer[triIndex].imageVerts[0], edge1);
-		minus(trianglebuffer[triIndex].imageVerts[2], trianglebuffer[triIndex].imageVerts[1], edge2);
-		minus(trianglebuffer[triIndex].imageVerts[0], trianglebuffer[triIndex].imageVerts[2], edge3);
+		minus(trianglebuffer[triIndex].vertices[1], trianglebuffer[triIndex].vertices[0], edge1);
+		minus(trianglebuffer[triIndex].vertices[2], trianglebuffer[triIndex].vertices[1], edge2);
+		minus(trianglebuffer[triIndex].vertices[0], trianglebuffer[triIndex].vertices[2], edge3);
 
 		GzCoord planeNorm;
 		crossProduct(edge1, edge2, planeNorm);
 		normalize(planeNorm, planeNorm);
-		float dCoeff = -dotProduct(planeNorm, trianglebuffer[triIndex].imageVerts[2]);
+		float dCoeff = -dotProduct(planeNorm, trianglebuffer[triIndex].vertices[2]);
 		trianglebuffer[triIndex].coeff[0] = planeNorm[0];
 		trianglebuffer[triIndex].coeff[1] = planeNorm[1];
 		trianglebuffer[triIndex].coeff[2] = planeNorm[2];
@@ -820,7 +820,19 @@ int GzRender::GzRaytracing()
 			normalize(ray.direction, ray.direction);
 
 			//check for intersections
-			for (int t = 0; t < triIndex; t++)
+			GzTri* triangle;
+			GzCoord hit;
+			bool result = GzFindFrontestIntersection(triangle, hit);
+			if (result)
+			{
+				pixelbuffer[j * xres + i].triangle = triangle;
+				pixelbuffer[j * xres + i].hitPoint[X] = hit[X];
+				pixelbuffer[j * xres + i].hitPoint[Y] = hit[Y];
+				pixelbuffer[j * xres + i].hitPoint[Z] = hit[Z];
+			}
+
+
+			/*for (int t = 0; t < triIndex; t++)
 			{
 				GzCoord hit;
 				float tval = GzCheckForTriangleIntersection(trianglebuffer[t], hit);
@@ -832,7 +844,7 @@ int GzRender::GzRaytracing()
 					pixelbuffer[j * xres + i].hitPoint[Y] = hit[Y];
 					pixelbuffer[j * xres + i].hitPoint[Z] = hit[Z];
 				}
-			}
+			}*/
 
 		}
 	}
@@ -1291,9 +1303,9 @@ int GzRender::ColorThePixel(GzTri triangle, int i, int j)
 	for (int l = 0; l < numlights; l++)
 	{
 		//Check for shadow - omit light if intersection found
-		bool isShadow = IsPixelAShadow(pixelbuffer[j * xres + i], lights[l]);
+		/*bool isShadow = IsPixelAShadow(pixelbuffer[j * xres + i], lights[l]);
 		if (isShadow)
-			continue;
+			continue;*/
 
 		float nl = GzDot(normal, lights[l].direction);
 		float ne = GzDot(normal, eye);
