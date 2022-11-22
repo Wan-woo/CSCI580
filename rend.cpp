@@ -955,6 +955,30 @@ bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord int
 	return flag;
 }
 
+float definitelyGreaterThan(float a, float b)
+{
+	return (a - b) > ((fabs(a) < fabs(b) ? fabs(b) : fabs(a)) * FLT_EPSILON) ? a : b;
+}
+
+bool definitelyLessThan(float a, float b)
+{
+	return (b - a) > ((fabs(a) < fabs(b) ? fabs(b) : fabs(a)) * FLT_EPSILON) ? a : b;
+}
+
+
+bool GzRender::GzAABBCollisionDetect(GzTri& triangle, BSP_tree* node)
+{
+	float min_x = min(min(triangle.imageVerts[0][0], triangle.imageVerts[1][0]), triangle.imageVerts[2][0]);
+	float max_x = max(max(triangle.imageVerts[0][0], triangle.imageVerts[1][0]), triangle.imageVerts[2][0]);
+	float min_y = min(min(triangle.imageVerts[0][1], triangle.imageVerts[1][1]), triangle.imageVerts[2][1]);
+	float max_y = max(max(triangle.imageVerts[0][1], triangle.imageVerts[1][1]), triangle.imageVerts[2][1]);
+	float min_z = min(min(triangle.imageVerts[0][2], triangle.imageVerts[1][2]), triangle.imageVerts[2][2]);
+	float max_z = max(max(triangle.imageVerts[0][2], triangle.imageVerts[1][2]), triangle.imageVerts[2][2]);
+	return (!((node->min_x > max_x) || (node->max_x < min_x)) &&
+		!((node->min_y > max_y) || (node->max_y < min_y)) &&
+		!((node->min_z > max_z) || (node->max_z < min_z)));
+}
+
 bool GzRender::insideBoundingBox(GzCoord vertex, BSP_tree* node)
 {
 	return ((vertex[0] >= node->min_x && vertex[0] <= node->max_x) &&
@@ -999,13 +1023,15 @@ void GzRender::GzCreateBSPTree(BSP_tree* node, int depth)
 		for (int i = 0; i < 3; i++)
 		{
 			//if (insideBoundingBox(tri.imageVerts[i], front) && !putInFront)
-			if (tri.imageVerts[i][(node->order +2)%3] >= mid && !putInFront)
+			//if (tri.imageVerts[i][(node->order +2)%3] >= mid && !putInFront)
+			if(GzAABBCollisionDetect(tri, front) && !putInFront)
 			{
 				front->triangles.push_back(index);
 				putInFront = true;
 			}
 			//if (insideBoundingBox(tri.imageVerts[i], back) && !putInBack)
-			if (tri.imageVerts[i][(node->order + 2) % 3] <= mid && !putInBack)
+			//if (tri.imageVerts[i][(node->order + 2) % 3] <= mid && !putInBack)
+			if (GzAABBCollisionDetect(tri, back) && !putInBack)
 			{
 				back->triangles.push_back(index);
 				putInBack = true;

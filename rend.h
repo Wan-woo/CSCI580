@@ -140,6 +140,8 @@ public:
 	bool GzFindFrontestFromList(GzTri*& triangle, GzCoord intersection, BSP_tree* node);
 
 	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
+	// Use AABB box checking collision
+	bool GzAABBCollisionDetect(GzTri& triangle, BSP_tree* node);
 
 
 
