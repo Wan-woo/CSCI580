@@ -33,6 +33,7 @@ public:
 	GzMatrix		Xnorm[MATLEVELS];	/* xforms for norms (Xim) */
 	GzMatrix		Xsp;		        /* NDC to screen (pers-to-screen) */
 	GzMatrix		Xspi;
+	GzMatrix		Xspiw;
 	GzColor		flatcolor;          /* color state for flat shaded triangles */
 	int			interp_mode;
 	int			numlights;
