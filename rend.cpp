@@ -1385,10 +1385,21 @@ int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 {
 	//Compute ray from pixel hit point to light
-	//memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord));
-	GzComputeCoord(Xspiw, pixel.hitPoint, ray.origin);
+	memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord));
+	//GzComputeCoord(Xspiw, pixel.hitPoint, ray.origin);
 	//memcpy((void*)ray.direction, (void*)light.direction, sizeof(GzCoord));
-	GzComputeCoord(Xspiw, light.direction, ray.direction);
+	
+	GzCoord light1, light2;
+	GzMatrix noTransform;
+	memcpy((void*)noTransform, (void*)Xspiw, sizeof(GzMatrix));
+	noTransform[0][3] = 0;
+	noTransform[1][3] = 0;
+	noTransform[2][3] = 0;
+
+	GzComputeCoord(noTransform, light.direction, ray.direction);
+	/*GzCoord dummy = { 0,0,0 };
+	GzComputeCoord(noTransform, dummy, light2);
+	minus(light2, light1, ray.direction);*/
 	normalize(ray.direction, ray.direction);
 	
 	//check for ray intersections with every triangle
