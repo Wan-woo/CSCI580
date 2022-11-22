@@ -66,7 +66,6 @@ int GzRender::GzTrxMat(GzCoord translate, GzMatrix mat)
 	return GZ_SUCCESS;
 }
 
-
 int GzRender::GzScaleMat(GzCoord scale, GzMatrix mat)
 {
 /* HW 3.5
@@ -78,7 +77,6 @@ int GzRender::GzScaleMat(GzCoord scale, GzMatrix mat)
 	mat[2][2] = mat[2][2] * scale[2];
 	return GZ_SUCCESS;
 }
-
 
 GzRender::GzRender(int xRes, int yRes)
 {
@@ -201,10 +199,8 @@ int GzRender::GzBeginRender()
 	GzPushMatrix(Xpi_t);
 	GzPushMatrix(Xiw_t);
 
-	/*MatrixMultiply(Xsp, Xpi_t, Xspi);
-	MatrixMultiply(Xspi, Xiw_t, Xspiw);*/
-	MatrixMultiply(Xiw_t, Xpi_t, Xspi);
-	MatrixMultiply(Xspi, Xsp, Xspiw);
+	MatrixMultiply(Xsp, Xpi_t, Xspi);
+	MatrixMultiply(Xspi, Xiw_t, Xspiw);
 
 	return GZ_SUCCESS;
 }
@@ -311,7 +307,6 @@ int GzRender::GzPut(int i, int j, GzIntensity r, GzIntensity g, GzIntensity b, G
 	return GZ_SUCCESS;
 }
 
-
 int GzRender::GzGet(int i, int j, GzIntensity *r, GzIntensity *g, GzIntensity *b, GzIntensity *a, GzDepth *z)
 {
 /* HW1.5 retrieve a pixel information from the pixel buffer */
@@ -324,7 +319,6 @@ int GzRender::GzGet(int i, int j, GzIntensity *r, GzIntensity *g, GzIntensity *b
 	}
 	return GZ_SUCCESS;
 }
-
 
 int GzRender::GzFlushDisplay2File(FILE* outfile)
 {
@@ -1303,9 +1297,9 @@ int GzRender::ColorThePixel(GzTri triangle, int i, int j)
 	for (int l = 0; l < numlights; l++)
 	{
 		//Check for shadow - omit light if intersection found
-		/*bool isShadow = IsPixelAShadow(pixelbuffer[j * xres + i], lights[l]);
+		bool isShadow = IsPixelAShadow(pixelbuffer[j * xres + i], lights[l]);
 		if (isShadow)
-			continue;*/
+			continue;
 
 		float nl = GzDot(normal, lights[l].direction);
 		float ne = GzDot(normal, eye);
@@ -1387,8 +1381,9 @@ bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 	//Compute ray from pixel hit point to light
 	memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord));
 	//GzComputeCoord(Xspiw, pixel.hitPoint, ray.origin);
+	//GzComputeCoord(Xspi, pixel.hitPoint, ray.origin);
 	//memcpy((void*)ray.direction, (void*)light.direction, sizeof(GzCoord));
-	
+
 	GzCoord light1, light2;
 	GzMatrix noTransform;
 	memcpy((void*)noTransform, (void*)Xspiw, sizeof(GzMatrix));
@@ -1400,6 +1395,7 @@ bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 	/*GzCoord dummy = { 0,0,0 };
 	GzComputeCoord(noTransform, dummy, light2);
 	minus(light2, light1, ray.direction);*/
+	GzComputeCoord(Xspi, light.direction, ray.direction);
 	normalize(ray.direction, ray.direction);
 	
 	//check for ray intersections with every triangle
