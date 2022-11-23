@@ -829,7 +829,8 @@ int GzRender::PointAtTValue(float t, GzCoord coord)
 	return GZ_SUCCESS;
 }
 
-//if return value is true, result will be in triangle and intersection
+//exception: the triangle that need to skip. if none, use nullptr
+//if return value is true, result will be in triangle and intersection. 
 //else there is no intersection
 //example: 
 //GzTri* pTriangle;
@@ -842,7 +843,7 @@ bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord int
 	for (int i = 0; i < triIndex; i++)
 	{
 		GzTri* pt = &trianglebuffer[i];
-		if (pt == exception)
+		if (pt == exception)//skip a specific triangle
 		{
 			continue;
 		}
@@ -1125,12 +1126,10 @@ void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPo
 	for (int l = 0; l < numlights; l++)
 	{
 		//Check for shadow - omit light if intersection found
-		GzCoord lightDirect;
-		scalarProduct(lights[l].direction, -1, lightDirect);//opposite directoin
-		memcpy((void*)ray.direction, (void*)lightDirect, sizeof(GzCoord));
+		memcpy((void*)ray.direction, (void*)lights[l].direction, sizeof(GzCoord));
 		GzTri* tmpTriangle;
 		GzCoord tmpHit;
-		if (GzFindFrontestIntersection(tmpTriangle, tmpHit, intersectTriangle))
+		if (GzFindFrontestIntersection(tmpTriangle, tmpHit, intersectTriangle))//find triangle except for "intersectTriangle"(where the ray start from)
 		{
 			continue;
 		}
