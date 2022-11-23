@@ -94,19 +94,12 @@ public:
 
 	//Ray tracing
 	int GzRaytracing();
-	bool IsTriangleVisible(GzTri triangle);
 	int PointAtTValue(float t, GzCoord coord);
-	int RayIntersection(GzTri triangle);
 	int Rasterize(GzTri triangle);
-	bool PixelTriangleCheck(GzTri* triangle, GzPixel pixel);
-	int AssignTriangleToPixel(int i, int j);
-	float IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint);
-	int ComputeRaycastColor();
-	int ColorThePixel(GzTri triangle, int i, int j);
+	bool GzRender::GzIntersectColor(GzColor result);
 	int ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal);
-	bool IsPixelAShadow(GzPixel pixel, GzLight light);
-	float GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersection);
 	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
+	void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzColor result);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
 		float res = 0;
