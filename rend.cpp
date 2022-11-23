@@ -791,15 +791,18 @@ int GzRender::GzRaytracing()
 	{
 		for (int j = 0; j < yres; j++)
 		{
-			//compute ray
+			if (i == 169 && j == 88)
+			{
+				int xjfksda = 3;
+			}
 			//compute primary ray
 			GzCoord start = { 0, 0, 0 };
 			memcpy((void*)ray.origin, (void*)start, sizeof(GzCoord));
 			GzCoord destination = { i * (2.0 / xres) - 1, 1 - j * (2.0 / yres), focalDistance };
 			memcpy((void*)ray.direction, (void*)destination, sizeof(GzCoord));
-			//normalize(ray.direction, ray.direction);
+			normalize(ray.direction, ray.direction);
 
-			//compute color at this direction and draw
+			//compute color at this screen pixel and draw
 			GzColor color;
 			bool result = GzIntersectColor(color);
 			if (result)
@@ -832,12 +835,17 @@ int GzRender::PointAtTValue(float t, GzCoord coord)
 //GzTri* pTriangle;
 //GzCoord pIntersection;
 //bool flag = GzFindFrontestIntersection(pTriangle, pIntersection);
-bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord intersectPoint)
+bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord intersectPoint, GzTri* exception)
 {
 	bool flag = false;
 	float minDistance = -1.0;
 	for (int i = 0; i < triIndex; i++)
 	{
+		GzTri* pt = &trianglebuffer[i];
+		if (pt == exception)
+		{
+			continue;
+		}
 		GzTri triangle = trianglebuffer[i];
 		GzCoord planeNorm = { triangle.coeff[0], triangle.coeff[1], triangle.coeff[2] };
 		float dCoeff = triangle.coeff[3];
@@ -1070,7 +1078,7 @@ bool GzRender::GzIntersectColor(GzColor result)
 	//find intersection
 	GzTri* triangle;
 	GzCoord hit;
-	bool hasIntersection = GzFindFrontestIntersection(triangle, hit);
+	bool hasIntersection = GzFindFrontestIntersection(triangle, hit, nullptr);
 	if (!hasIntersection)
 	{
 		return false;
@@ -1113,7 +1121,7 @@ void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPo
 
 	GzCoord eye = { 0, 0, -1 };
 	GzColor color = { 0, 0, 0 };
-	GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 }, ambient = { 0, 0, 0 };
+	GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 };
 	for (int l = 0; l < numlights; l++)
 	{
 		//Check for shadow - omit light if intersection found
@@ -1122,7 +1130,7 @@ void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPo
 		memcpy((void*)ray.direction, (void*)lightDirect, sizeof(GzCoord));
 		GzTri* tmpTriangle;
 		GzCoord tmpHit;
-		if (GzFindFrontestIntersection(tmpTriangle, tmpHit))
+		if (GzFindFrontestIntersection(tmpTriangle, tmpHit, intersectTriangle))
 		{
 			continue;
 		}

@@ -98,7 +98,7 @@ public:
 	int Rasterize(GzTri triangle);
 	bool GzRender::GzIntersectColor(GzColor result);
 	int ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal);
-	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);
+	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection, GzTri* exception);
 	void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzColor result);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{

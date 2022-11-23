@@ -143,7 +143,7 @@ GzMatrix	rotateY =
         valueListLights[1] = (GzPointer)&light2;
         nameListLights[2] = GZ_DIRECTIONAL_LIGHT;
         valueListLights[2] = (GzPointer)&light3;
-        status |= m_pRender->GzPutAttribute(1, nameListLights, valueListLights);
+        status |= m_pRender->GzPutAttribute(3, nameListLights, valueListLights);
 
         nameListLights[0] = GZ_AMBIENT_LIGHT;
         valueListLights[0] = (GzPointer)&ambientlight;
