@@ -150,7 +150,7 @@ int GzRender::GzDefault()
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				trianglebuffer[triIndex].vertices[j][k] = 0;
+				trianglebuffer[triIndex].screenVerts[j][k] = 0;
 				trianglebuffer[triIndex].imageVerts[j][k] = 0;
 			}
 			for (int k = 0; k < 2; k++)
@@ -229,11 +229,12 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 */
 	if (matlevel == 0)
 	{
-		memcpy((void*)Ximage[0], (void*)matrix, sizeof(GzMatrix));
+		memcpy((void*)X2screen[0], (void*)matrix, sizeof(GzMatrix));
 
 		// for Xnorm
 		GzMatrix Xnorm_initial = { {1, 0, 0, 0},{0, 1, 0, 0},{0, 0, 1, 0},{0, 0, 0, 1} };
 		memcpy((void*)Xnorm[0], (void*)Xnorm_initial, sizeof(GzMatrix));
+		memcpy((void*)X2image[0], (void*)Xnorm_initial, sizeof(GzMatrix));
 		// only do this after push matrix
 		matlevel++;
 	}
@@ -247,19 +248,21 @@ int GzRender::GzPushMatrix(GzMatrix	matrix)
 				temp[i][j] = 0;
 				for (int k = 0; k < 4; k++)
 				{
-					temp[i][j] += Ximage[matlevel - 1][i][k] * matrix[k][j];
+					temp[i][j] += X2screen[matlevel - 1][i][k] * matrix[k][j];
 				}
 			}
 		}
-		memcpy((void*)Ximage[matlevel], (void*)temp, sizeof(GzMatrix));
+		memcpy((void*)X2screen[matlevel], (void*)temp, sizeof(GzMatrix));
 		// do this for Xnorm, skip Xpi
 		if (matlevel == 1)
 		{
 			GzMatrix Xnorm_initial = { {1, 0, 0, 0},{0, 1, 0, 0},{0, 0, 1, 0},{0, 0, 0, 1} };
 			memcpy((void*)Xnorm[1], (void*)Xnorm_initial, sizeof(GzMatrix));
+			memcpy((void*)X2image[1], (void*)Xnorm_initial, sizeof(GzMatrix));
 		}
 		else
 		{
+			MatrixMultiply(X2image[matlevel - 1], matrix, X2image[matlevel]);
 			//unitary scale
 			//only focused on 3*3 matrix
 			float K = sqrt(matrix[0][0] * matrix[0][0] + matrix[0][1] * matrix[0][1] + matrix[0][2] * matrix[0][2]);
@@ -737,26 +740,22 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		GzCoord temp[3];
 		memcpy((void*)temp, (void*)valueList[0], sizeof(GzCoord) * 3);
 		
-		GzCoord coord0, coord1, coord2;
-		GzComputeCoord(Ximage[matlevel - 1], temp[0], coord0);
-		GzComputeCoord(Ximage[matlevel - 1], temp[1], coord1);
-		GzComputeCoord(Ximage[matlevel - 1], temp[2], coord2);
+		GzCoord screenvertices[3];
+		GzComputeCoord(X2screen[matlevel - 1], temp[0], screenvertices[0]);
+		GzComputeCoord(X2screen[matlevel - 1], temp[1], screenvertices[1]);
+		GzComputeCoord(X2screen[matlevel - 1], temp[2], screenvertices[2]);
 		
 		GzCoord imagevertices[3];
-		GzComputeCoord(Xnorm[matlevel - 1], temp[0], imagevertices[0]);
-		GzComputeCoord(Xnorm[matlevel - 1], temp[1], imagevertices[1]);
-		GzComputeCoord(Xnorm[matlevel - 1], temp[2], imagevertices[2]);
-
-		GzCoord screen[3] = { {coord0[0], coord0[1],  coord0[2]}, 
-			{coord1[0], coord1[1],  coord1[2]}, 
-			{coord2[0], coord2[1],  coord2[2]} };
+		GzComputeCoord(X2image[matlevel - 1], temp[0], imagevertices[0]);
+		GzComputeCoord(X2image[matlevel - 1], temp[1], imagevertices[1]);
+		GzComputeCoord(X2image[matlevel - 1], temp[2], imagevertices[2]);
 
 		//save verts to triangle buffer
 		for (int j = 0; j < 3; j++)
 		{
 			for (int k = 0; k < 3; k++)
 			{
-				trianglebuffer[triIndex].vertices[j][k] = screen[j][k];
+				trianglebuffer[triIndex].screenVerts[j][k] = screenvertices[j][k];
 				trianglebuffer[triIndex].imageVerts[j][k] = imagevertices[j][k];
 			}
 		}
@@ -764,24 +763,21 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		//save plane coeff to triangle buffer
 		//compute triangle (plane) normal using: crossProduct(1, 2, result)
 		GzCoord edge1, edge2, edge3;
-		minus(trianglebuffer[triIndex].vertices[1], trianglebuffer[triIndex].vertices[0], edge1);
-		minus(trianglebuffer[triIndex].vertices[2], trianglebuffer[triIndex].vertices[1], edge2);
-		minus(trianglebuffer[triIndex].vertices[0], trianglebuffer[triIndex].vertices[2], edge3);
+		minus(trianglebuffer[triIndex].imageVerts[1], trianglebuffer[triIndex].imageVerts[0], edge1);
+		minus(trianglebuffer[triIndex].imageVerts[2], trianglebuffer[triIndex].imageVerts[1], edge2);
+		minus(trianglebuffer[triIndex].imageVerts[0], trianglebuffer[triIndex].imageVerts[2], edge3);
 
 		GzCoord planeNorm;
 		crossProduct(edge1, edge2, planeNorm);
 		normalize(planeNorm, planeNorm);
-		float dCoeff = -dotProduct(planeNorm, trianglebuffer[triIndex].vertices[2]);
+		float dCoeff = -dotProduct(planeNorm, trianglebuffer[triIndex].imageVerts[2]);
 		trianglebuffer[triIndex].coeff[0] = planeNorm[0];
 		trianglebuffer[triIndex].coeff[1] = planeNorm[1];
 		trianglebuffer[triIndex].coeff[2] = planeNorm[2];
 		trianglebuffer[triIndex].coeff[3] = dCoeff;
 	}
-	
-	if (IsTriangleVisible(trianglebuffer[triIndex]))
-	{
-		triIndex++;
-	}
+
+	triIndex++;
 	
 	return GZ_SUCCESS;
 }
@@ -792,9 +788,9 @@ bool GzRender::IsTriangleVisible(GzTri triangle)
 	GzComputeCoord(Xspiw, m_camera.position, ray.origin);
 
 	GzCoord centroid;
-	centroid[X] = ((triangle.vertices[0][X] + triangle.vertices[1][X] + triangle.vertices[2][X]) / 3.0);
-	centroid[Y] = ((triangle.vertices[0][Y] + triangle.vertices[1][Y] + triangle.vertices[2][Y]) / 3.0);
-	centroid[Z] = ((triangle.vertices[0][Z] + triangle.vertices[1][Z] + triangle.vertices[2][Z]) / 3.0);
+	centroid[X] = ((triangle.screenVerts[0][X] + triangle.screenVerts[1][X] + triangle.screenVerts[2][X]) / 3.0);
+	centroid[Y] = ((triangle.screenVerts[0][Y] + triangle.screenVerts[1][Y] + triangle.screenVerts[2][Y]) / 3.0);
+	centroid[Z] = ((triangle.screenVerts[0][Z] + triangle.screenVerts[1][Z] + triangle.screenVerts[2][Z]) / 3.0);
 	minus(centroid, ray.origin, ray.direction);
 	normalize(ray.direction, ray.direction);
 
@@ -809,15 +805,18 @@ bool GzRender::IsTriangleVisible(GzTri triangle)
 int GzRender::GzRaytracing()
 {
 	//shoot primary ray through each pixel
+	float focalDistance = 1 / tan(m_camera.FOV * PI / (180 * 2));
 	for (int i = 0; i < xres; i++)
 	{
 		for (int j = 0; j < yres; j++)
 		{
 			//compute ray
-			GzComputeCoord(Xspiw, m_camera.position, ray.origin);
-			GzCoord destination = { i, j, MAXINT };
-			minus(destination, ray.origin, ray.direction);
-			normalize(ray.direction, ray.direction);
+			//compute primary ray
+			GzCoord start = { 0, 0, 0 };
+			memcpy((void*)ray.origin, (void*)start, sizeof(start));
+			GzCoord destination = { i * (2.0 / xres) - 1, 1 - j * (2.0 / yres), focalDistance };
+			memcpy((void*)ray.direction, (void*)destination, sizeof(destination));
+			//normalize(ray.direction, ray.direction);
 
 			//check for intersections
 			GzTri* triangle;
@@ -903,13 +902,13 @@ bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord int
 		GzCoord Pvalue, edge1, edge2, edge3, coord1, coord2, coord3, cross1, cross2, cross3;
 		PointAtTValue(tValue, Pvalue);
 
-		minus(Pvalue, triangle.vertices[0], coord1);
-		minus(Pvalue, triangle.vertices[1], coord2);
-		minus(Pvalue, triangle.vertices[2], coord3);
+		minus(Pvalue, triangle.imageVerts[0], coord1);
+		minus(Pvalue, triangle.imageVerts[1], coord2);
+		minus(Pvalue, triangle.imageVerts[2], coord3);
 
-		minus(triangle.vertices[1], triangle.vertices[0], edge1);
-		minus(triangle.vertices[2], triangle.vertices[1], edge2);
-		minus(triangle.vertices[0], triangle.vertices[2], edge3);
+		minus(triangle.imageVerts[1], triangle.imageVerts[0], edge1);
+		minus(triangle.imageVerts[2], triangle.imageVerts[1], edge2);
+		minus(triangle.imageVerts[0], triangle.imageVerts[2], edge3);
 		crossProduct(edge1, coord1, cross1);
 		crossProduct(edge2, coord2, cross2);
 		crossProduct(edge3, coord3, cross3);
@@ -935,8 +934,8 @@ bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord int
 float GzRender::GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersection)
 {
 	GzCoord edge1, edge2;
-	minus(triangle.vertices[1], triangle.vertices[0], edge1);
-	minus(triangle.vertices[2], triangle.vertices[0], edge2);
+	minus(triangle.screenVerts[1], triangle.screenVerts[0], edge1);
+	minus(triangle.screenVerts[2], triangle.screenVerts[0], edge2);
 
 	GzCoord planeNorm;
 	crossProduct(ray.direction, edge2, planeNorm);
@@ -947,7 +946,7 @@ float GzRender::GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersect
 	float invDet = 1 / det;
 
 	float tvec[3] = {};
-	minus(ray.origin, triangle.vertices[0], tvec);
+	minus(ray.origin, triangle.screenVerts[0], tvec);
 	float u = dotProduct(tvec, planeNorm) * invDet;
 	if (u < 0 || u > 1) 
 		return -1;
@@ -968,8 +967,8 @@ int GzRender::RayIntersection(GzTri triangle)
 	//Using SCREEN SPACE to compute primary ray intersections
 	//compute triangle (plane) normal using: crossProduct(1, 2, result)
 	GzCoord edge1, edge2;
-	minus(triangle.vertices[1], triangle.vertices[0], edge1);
-	minus(triangle.vertices[2], triangle.vertices[0], edge2);
+	minus(triangle.screenVerts[1], triangle.screenVerts[0], edge1);
+	minus(triangle.screenVerts[2], triangle.screenVerts[0], edge2);
 
 	GzCoord planeNorm;
 	crossProduct(ray.direction, edge2, planeNorm);
@@ -979,7 +978,7 @@ int GzRender::RayIntersection(GzTri triangle)
 	float invDet = 1 / det; 
 	
 	float tvec[3] = {}; 
-	minus(ray.origin, triangle.vertices[0], tvec); 
+	minus(ray.origin, triangle.screenVerts[0], tvec); 
 	float u = dotProduct(tvec, planeNorm) * invDet; 
 	if (u < 0 || u > 1) return GZ_FAILURE; 
 
@@ -1036,7 +1035,7 @@ int GzRender::Rasterize(GzTri triangle)
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			temp[i][j] = triangle.vertices[i][j];
+			temp[i][j] = triangle.screenVerts[i][j];
 			norms[i][j] = triangle.normals[i][j];
 		}
 		for (int k = 0; k < 2; k++)
@@ -1227,7 +1226,7 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 
 	//check if (i,j) is in the bounds of the triangle vertices
 	edge edges[3];
-	int clock = checkCCW(triangle.vertices[1][0] - triangle.vertices[0][0], triangle.vertices[1][1] - triangle.vertices[0][1], triangle.vertices[2][0] - triangle.vertices[0][0], triangle.vertices[2][1] - triangle.vertices[0][1]);
+	int clock = checkCCW(triangle.screenVerts[1][0] - triangle.screenVerts[0][0], triangle.screenVerts[1][1] - triangle.screenVerts[0][1], triangle.screenVerts[2][0] - triangle.screenVerts[0][0], triangle.screenVerts[2][1] - triangle.screenVerts[0][1]);
 	if (!clock)
 	{
 		return tValue;
@@ -1254,7 +1253,7 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 	{
 		int from = edges[i].from;
 		int to = edges[i].to;
-		computeCoeffcient(triangle.vertices[to][0], triangle.vertices[to][1], triangle.vertices[from][0] - triangle.vertices[to][0], triangle.vertices[from][1] - triangle.vertices[to][1], edges[i].A, edges[i].B, edges[i].C);
+		computeCoeffcient(triangle.screenVerts[to][0], triangle.screenVerts[to][1], triangle.screenVerts[from][0] - triangle.screenVerts[to][0], triangle.screenVerts[from][1] - triangle.screenVerts[to][1], edges[i].A, edges[i].B, edges[i].C);
 	}
 
 	//Check if pixel is in triangle bounds
@@ -1353,23 +1352,23 @@ int GzRender::ColorThePixel(GzTri triangle, int i, int j)
 
 int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 {
-	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.vertices[0][2] + 1), triangle.uv[0][1] / (triangle.vertices[0][2] + 1), 1},
-			{triangle.uv[1][0] / (triangle.vertices[1][2] + 1), triangle.uv[1][1] / (triangle.vertices[1][2] + 1), 1},
-			{triangle.uv[2][0] / (triangle.vertices[2][2] + 1), triangle.uv[2][1] / (triangle.vertices[2][2] + 1), 1} };
+	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.screenVerts[0][2] + 1), triangle.uv[0][1] / (triangle.screenVerts[0][2] + 1), 1},
+			{triangle.uv[1][0] / (triangle.screenVerts[1][2] + 1), triangle.uv[1][1] / (triangle.screenVerts[1][2] + 1), 1},
+			{triangle.uv[2][0] / (triangle.screenVerts[2][2] + 1), triangle.uv[2][1] / (triangle.screenVerts[2][2] + 1), 1} };
 	float uv_plane[2][4];
-	GzComputePlane(triangle.vertices, coeff, uv_plane);
+	GzComputePlane(triangle.screenVerts, coeff, uv_plane);
 
 	// try to compute global plane normal
 	float Az, Bz, Cz, Dz;
-	float a1 = triangle.vertices[1][0] - triangle.vertices[0][0];
-	float b1 = triangle.vertices[1][1] - triangle.vertices[0][1];
-	float c1 = triangle.vertices[1][2] - triangle.vertices[0][2];
-	float a2 = triangle.vertices[2][0] - triangle.vertices[0][0];
-	float b2 = triangle.vertices[2][1] - triangle.vertices[0][1];
-	float c2 = triangle.vertices[2][2] - triangle.vertices[0][2];
-	computePlane(triangle.vertices[0][0], triangle.vertices[0][1], triangle.vertices[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
+	float a1 = triangle.screenVerts[1][0] - triangle.screenVerts[0][0];
+	float b1 = triangle.screenVerts[1][1] - triangle.screenVerts[0][1];
+	float c1 = triangle.screenVerts[1][2] - triangle.screenVerts[0][2];
+	float a2 = triangle.screenVerts[2][0] - triangle.screenVerts[0][0];
+	float b2 = triangle.screenVerts[2][1] - triangle.screenVerts[0][1];
+	float c2 = triangle.screenVerts[2][2] - triangle.screenVerts[0][2];
+	computePlane(triangle.screenVerts[0][0], triangle.screenVerts[0][1], triangle.screenVerts[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
 
-	GzComputePlane(triangle.vertices, triangle.normals);
+	GzComputePlane(triangle.screenVerts, triangle.normals);
 
 	normal[0] = (-planes[0][0] * i - planes[0][1] * j - planes[0][3]) / planes[0][2];
 	normal[1] = (-planes[1][0] * i - planes[1][1] * j - planes[1][3]) / planes[1][2];

@@ -102,7 +102,7 @@ typedef struct  GzInput
 
 #ifndef GZ_TRIANGLE
 typedef struct {
-	GzCoord vertices[3];
+	GzCoord screenVerts[3];
 	GzCoord imageVerts[3];
 	GzCoord normals[3];
 	GzTextureIndex uv[3];

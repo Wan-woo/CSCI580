@@ -29,8 +29,9 @@ public:
 
 	GzCamera		m_camera;
 	short		    matlevel;	        /* top of stack - current xform */
-	GzMatrix		Ximage[MATLEVELS];	/* stack of xforms (Xsm) */
+	GzMatrix		X2screen[MATLEVELS];	/* stack of xforms (Xsm) */
 	GzMatrix		Xnorm[MATLEVELS];	/* xforms for norms (Xim) */
+	GzMatrix		X2image[MATLEVELS];	/* stack from model space to image space */
 	GzMatrix		Xsp;		        /* NDC to screen (pers-to-screen) */
 	GzMatrix		Xspi;
 	GzMatrix		Xspiw;
@@ -165,6 +166,23 @@ public:
 		}
 		memcpy((void*)result, (void*)temp, sizeof(GzMatrix));
 	}
+	void GzRender::add(GzCoord s1, GzCoord s2, GzCoord res)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			res[i] = s1[i] + s2[i];
 
+		}
+
+	}
+	void GzRender::scalarProduct(GzCoord s, float n, GzCoord res)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			res[i] = s[i] * n;
+
+		}
+
+	}
 };
 #endif
