@@ -794,9 +794,9 @@ int GzRender::GzRaytracing()
 			//compute ray
 			//compute primary ray
 			GzCoord start = { 0, 0, 0 };
-			memcpy((void*)ray.origin, (void*)start, sizeof(start));
+			memcpy((void*)ray.origin, (void*)start, sizeof(GzCoord));
 			GzCoord destination = { i * (2.0 / xres) - 1, 1 - j * (2.0 / yres), focalDistance };
-			memcpy((void*)ray.direction, (void*)destination, sizeof(destination));
+			memcpy((void*)ray.direction, (void*)destination, sizeof(GzCoord));
 			//normalize(ray.direction, ray.direction);
 
 			//compute color at this direction and draw
@@ -1101,7 +1101,7 @@ bool GzRender::GzIntersectColor(GzColor result)
 void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzColor result)
 {
 	// ray shoot from intersection point to light
-	memcpy((void*)ray.origin, (void*)intersectPoint, sizeof(intersectPoint));
+	memcpy((void*)ray.origin, (void*)intersectPoint, sizeof(GzCoord));
 
 	GzCoord normal;
 	for (int i = 0; i < 3; i++)
@@ -1119,7 +1119,7 @@ void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPo
 		//Check for shadow - omit light if intersection found
 		GzCoord lightDirect;
 		scalarProduct(lights[l].direction, -1, lightDirect);//opposite directoin
-		memcpy((void*)ray.direction, (void*)lightDirect, sizeof(lightDirect));
+		memcpy((void*)ray.direction, (void*)lightDirect, sizeof(GzCoord));
 		GzTri* tmpTriangle;
 		GzCoord tmpHit;
 		if (GzFindFrontestIntersection(tmpTriangle, tmpHit))
