@@ -103,6 +103,7 @@ public:
 	int ComputeRaycastColor();
 	int ColorThePixel(GzTri triangle, int i, int j);
 	int ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal);
+	int ComputeHitPointNormal(GzCoord hit, GzTri triangle, GzCoord normal);
 	bool IsPixelAShadow(GzPixel pixel, GzLight light);
 	float GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersection);
 	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection);

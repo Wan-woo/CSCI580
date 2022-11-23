@@ -1390,13 +1390,53 @@ int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 	return GZ_SUCCESS;
 }
 
+int GzRender::ComputeHitPointNormal(GzCoord hit, GzTri triangle, GzCoord normal)
+{
+	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.vertices[0][2] + 1), triangle.uv[0][1] / (triangle.vertices[0][2] + 1), 1},
+			{triangle.uv[1][0] / (triangle.vertices[1][2] + 1), triangle.uv[1][1] / (triangle.vertices[1][2] + 1), 1},
+			{triangle.uv[2][0] / (triangle.vertices[2][2] + 1), triangle.uv[2][1] / (triangle.vertices[2][2] + 1), 1} };
+	float uv_plane[2][4];
+	GzComputePlane(triangle.vertices, coeff, uv_plane);
+
+	// try to compute global plane normal
+	float Az, Bz, Cz, Dz;
+	float a1 = triangle.vertices[1][0] - triangle.vertices[0][0];
+	float b1 = triangle.vertices[1][1] - triangle.vertices[0][1];
+	float c1 = triangle.vertices[1][2] - triangle.vertices[0][2];
+	float a2 = triangle.vertices[2][0] - triangle.vertices[0][0];
+	float b2 = triangle.vertices[2][1] - triangle.vertices[0][1];
+	float c2 = triangle.vertices[2][2] - triangle.vertices[0][2];
+	computePlane(triangle.vertices[0][0], triangle.vertices[0][1], triangle.vertices[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
+
+	GzComputePlane(triangle.vertices, triangle.normals);
+
+	normal[0] = (-planes[0][0] * hit[X] - planes[0][1] * hit[Y] - planes[0][3]) / planes[0][2];
+	normal[1] = (-planes[1][0] * hit[X] - planes[1][1] * hit[Y] - planes[1][3]) / planes[1][2];
+	normal[2] = (-planes[2][0] * hit[X] - planes[2][1] * hit[Y] - planes[2][3]) / planes[2][2];
+	float d = GzCoordLength(normal);
+	normal[0] = normal[0] / d;
+	normal[1] = normal[1] / d;
+	normal[2] = normal[2] / d;
+
+	return GZ_SUCCESS;
+}
+
 //Determines whether a pixel is a shadow
 //Done by shooting a shadow ray from each pixel's primary ray hit point to each light
 //If the shadow ray intersects anything, the light is omitted from the shading equation
 bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 {
 	//Compute ray from pixel hit point to light (screen space)
-	memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord));
+	memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord)); 
+	
+	float bias = 1e4;
+	GzCoord hitNorm;
+	ComputeHitPointNormal(pixel.hitPoint, *pixel.triangle, hitNorm);
+	normalize(hitNorm, hitNorm);
+	ray.origin[X] += bias * hitNorm[X];
+	ray.origin[Y] += bias * hitNorm[Y];
+	ray.origin[X] += bias * hitNorm[Z];
+
 	//GzComputeCoord(Xspiw, pixel.hitPoint, ray.origin);
 	//GzComputeCoord(Xspi, pixel.hitPoint, ray.origin);
 	//memcpy((void*)ray.direction, (void*)light.direction, sizeof(GzCoord));
