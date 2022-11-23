@@ -1429,7 +1429,7 @@ bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 	//Compute ray from pixel hit point to light (screen space)
 	memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord)); 
 	
-	float bias = 1e4;
+	float bias = 1e-2;
 	GzCoord hitNorm;
 	ComputeHitPointNormal(pixel.hitPoint, *pixel.triangle, hitNorm);
 	normalize(hitNorm, hitNorm);
@@ -1468,5 +1468,13 @@ bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 	//check for ray intersections with every triangle
 	GzTri* dummyTri;
 	GzCoord dummyIntersect;
-	return GzFindFrontestIntersection(dummyTri, dummyIntersect);
+	bool result = GzFindFrontestIntersection(dummyTri, dummyIntersect);
+
+	//check for self-intersection
+	if (dummyTri == pixel.triangle)
+	{
+		result = false;
+	}
+
+	return result;
 }
