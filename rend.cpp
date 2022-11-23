@@ -800,6 +800,7 @@ bool GzRender::IsTriangleVisible(GzTri triangle)
 	return false;
 }
 
+/* Performs Raytracing */
 int GzRender::GzRaytracing()
 {
 	//shoot primary ray through each pixel
@@ -807,17 +808,18 @@ int GzRender::GzRaytracing()
 	{
 		for (int j = 0; j < yres; j++)
 		{
-			//compute ray
+			//compute ray (in screen space)
 			GzComputeCoord(Xspiw, m_camera.position, ray.origin);
 			GzCoord destination = { i, j, MAXINT };
 			minus(destination, ray.origin, ray.direction);
 			normalize(ray.direction, ray.direction);
 
-			//check for intersections
+			//check to see if primary ray intersects any triangles
+			//get the closest intersection (smallest t-value)
 			GzTri* triangle;
 			GzCoord hit;
 			bool result = GzFindFrontestIntersection(triangle, hit);
-			if (result)
+			if (result) //save hit triangle to pixel
 			{
 				pixelbuffer[j * xres + i].triangle = triangle;
 				pixelbuffer[j * xres + i].hitPoint[X] = hit[X];
@@ -826,6 +828,7 @@ int GzRender::GzRaytracing()
 			}
 
 
+			//below is old code
 			/*for (int t = 0; t < triIndex; t++)
 			{
 				GzCoord hit;
@@ -926,6 +929,7 @@ bool GzRender::GzFindFrontestIntersection(GzTri*& intersectTriangle, GzCoord int
 	return flag;
 }
 
+//old code
 float GzRender::GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersection)
 {
 	GzCoord edge1, edge2;
@@ -957,6 +961,7 @@ float GzRender::GzCheckForTriangleIntersection(GzTri triangle, GzCoord intersect
 	return t;
 }
 
+//old code
 int GzRender::RayIntersection(GzTri triangle)
 {
 	//Using SCREEN SPACE to compute primary ray intersections
@@ -1166,6 +1171,7 @@ int GzRender::Rasterize(GzTri triangle)
 	return GZ_SUCCESS;
 }
 
+//checks to see if pixel's triangle = given triangle
 bool GzRender::PixelTriangleCheck(GzTri* triangle, GzPixel pixel)
 {
 	if (pixel.triangle != nullptr)
@@ -1175,6 +1181,7 @@ bool GzRender::PixelTriangleCheck(GzTri* triangle, GzPixel pixel)
 	return false;
 }
 
+//old code to assign a triangle to each pixel based on primary ray
 int GzRender::AssignTriangleToPixel(int i , int j)
 {
 	GzPixel pixel = pixelbuffer[j * xres + i];
@@ -1215,6 +1222,7 @@ int GzRender::AssignTriangleToPixel(int i , int j)
 	return GZ_SUCCESS;
 }
 
+//old code to see if a pixel is in a given triangle
 float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, GzCoord hitPoint)
 {
 	float tValue = -1;
@@ -1263,6 +1271,8 @@ float GzRender::IsPixelInTriangle(int i, int j, GzPixel pixel, GzTri triangle, G
 	return tValue;
 }
 
+//used to compute the color of each pixel based on its assigned triangle
+//if no triangle assigned = pixel is given BG color
 int GzRender::ComputeRaycastColor()
 {	
 	//iterate over the pixels
@@ -1272,6 +1282,7 @@ int GzRender::ComputeRaycastColor()
 		{
 			GzPixel pixel = pixelbuffer[j * xres + i];
 
+			//check if pixel is a background pixel
 			if (pixel.triangle != nullptr)
 			{
 				//Compute the color at the current pixel
@@ -1286,6 +1297,7 @@ int GzRender::ComputeRaycastColor()
 	return GZ_SUCCESS;
 }
 
+//old code for pixel coloring
 int GzRender::ColorThePixel(GzTri triangle, int i, int j)
 {
 	GzCoord normal;
@@ -1345,6 +1357,8 @@ int GzRender::ColorThePixel(GzTri triangle, int i, int j)
 	return GZ_SUCCESS;
 }
 
+//Interpolates the normal of a pixel based on a given triangle
+//(We are using Phong shading for our shading implementation)
 int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 {
 	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.vertices[0][2] + 1), triangle.uv[0][1] / (triangle.vertices[0][2] + 1), 1},
@@ -1376,17 +1390,22 @@ int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 	return GZ_SUCCESS;
 }
 
+//Determines whether a pixel is a shadow
+//Done by shooting a shadow ray from each pixel's primary ray hit point to each light
+//If the shadow ray intersects anything, the light is omitted from the shading equation
 bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 {
-	//Compute ray from pixel hit point to light
+	//Compute ray from pixel hit point to light (screen space)
 	memcpy((void*)ray.origin, (void*)pixel.hitPoint, sizeof(GzCoord));
 	//GzComputeCoord(Xspiw, pixel.hitPoint, ray.origin);
 	//GzComputeCoord(Xspi, pixel.hitPoint, ray.origin);
 	//memcpy((void*)ray.direction, (void*)light.direction, sizeof(GzCoord));
 
+	//attempting to compute the shadow ray direction
+	//so it is shooting in the direction of the given light
 	GzCoord light1, light2;
 	GzMatrix noTransform;
-	memcpy((void*)noTransform, (void*)Xspiw, sizeof(GzMatrix));
+	memcpy((void*)noTransform, (void*)Xspi, sizeof(GzMatrix));
 	noTransform[0][3] = 0;
 	noTransform[1][3] = 0;
 	noTransform[2][3] = 0;
@@ -1397,6 +1416,14 @@ bool GzRender::IsPixelAShadow(GzPixel pixel, GzLight light)
 	minus(light2, light1, ray.direction);*/
 	GzComputeCoord(Xspi, light.direction, ray.direction);
 	normalize(ray.direction, ray.direction);
+
+
+	/*NOTE: when calculating light (and therefore also shadows), 
+	the scratchapixel example being used the hitpoint's normal to 
+	calculate a bias point a certain distance above the hit point 
+	to use in lighting calculations, but that is not implemented here.
+	We are currently attempting to include such a calculation to see
+	if it solves our spotty shadow problem. */
 	
 	//check for ray intersections with every triangle
 	GzTri* dummyTri;
