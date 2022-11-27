@@ -1107,6 +1107,38 @@ bool GzRender::GzIntersectColor(GzColor result)
 		return true;
 	}
 }
+
+int GzRender::ComputeHitPointNormal(GzCoord hit, GzTri triangle, GzCoord normal)
+{
+	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.imageVerts[0][2] + 1), triangle.uv[0][1] / (triangle.imageVerts[0][2] + 1), 1},
+			{triangle.uv[1][0] / (triangle.imageVerts[1][2] + 1), triangle.uv[1][1] / (triangle.imageVerts[1][2] + 1), 1},
+			{triangle.uv[2][0] / (triangle.imageVerts[2][2] + 1), triangle.uv[2][1] / (triangle.imageVerts[2][2] + 1), 1} };
+	float uv_plane[2][4];
+	GzComputePlane(triangle.imageVerts, coeff, uv_plane);
+
+	// try to compute global plane normal
+	float Az, Bz, Cz, Dz;
+	float a1 = triangle.imageVerts[1][0] - triangle.imageVerts[0][0];
+	float b1 = triangle.imageVerts[1][1] - triangle.imageVerts[0][1];
+	float c1 = triangle.imageVerts[1][2] - triangle.imageVerts[0][2];
+	float a2 = triangle.imageVerts[2][0] - triangle.imageVerts[0][0];
+	float b2 = triangle.imageVerts[2][1] - triangle.imageVerts[0][1];
+	float c2 = triangle.imageVerts[2][2] - triangle.imageVerts[0][2];
+	computePlane(triangle.imageVerts[0][0], triangle.imageVerts[0][1], triangle.imageVerts[0][2], a1, b1, c1, a2, b2, c2, Az, Bz, Cz, Dz);
+
+	GzComputePlane(triangle.imageVerts, triangle.normals);
+
+	normal[0] = (-planes[0][0] * hit[X] - planes[0][1] * hit[Y] - planes[0][3]) / planes[0][2];
+	normal[1] = (-planes[1][0] * hit[X] - planes[1][1] * hit[Y] - planes[1][3]) / planes[1][2];
+	normal[2] = (-planes[2][0] * hit[X] - planes[2][1] * hit[Y] - planes[2][3]) / planes[2][2];
+	float d = GzCoordLength(normal);
+	normal[0] = normal[0] / d;
+	normal[1] = normal[1] / d;
+	normal[2] = normal[2] / d;
+
+	return GZ_SUCCESS;
+}
+
 void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzColor result)
 {
 	// ray shoot from intersection point to light
@@ -1115,7 +1147,9 @@ void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPo
 	GzCoord normal;
 	for (int i = 0; i < 3; i++)
 	{
-		normal[i] = intersectTriangle->normals[0][i];//falt shading for now
+		//normal[i] = intersectTriangle->normals[0][i];//falt shading for now
+		ComputeHitPointNormal(intersectPoint, *intersectTriangle, normal);
+		
 	}
 	//todo: use phong shading
 	//ComputePixelNormal(i, j, triangle, normal);
