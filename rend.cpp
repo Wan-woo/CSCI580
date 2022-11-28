@@ -749,9 +749,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		GzComputeCoord(X2image[matlevel - 1], temp[1], imagevertices[1]);
 		GzComputeCoord(X2image[matlevel - 1], temp[2], imagevertices[2]);
 
+		//make the first triangle a mirror!
 		if (triIndex == 0)
 		{
-			//create the mirror input!
 			trianglebuffer[triIndex].isMirror = true;
 
 			imagevertices[0][0] -= 30;
@@ -806,7 +806,6 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 int GzRender::GzRaytracing()
 {
-
 	//shoot primary ray through each pixel
 	float focalDistance = 1 / tan(m_camera.FOV * PI / (180 * 2));
 	for (int i = 0; i < xres; i++)
