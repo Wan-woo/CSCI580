@@ -712,6 +712,17 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			trianglebuffer[triIndex].normals[2][i] = coord2[i];
 		}
 
+		if (triIndex == 0 || triIndex == 1)
+		{
+
+			for (int i = 0; i < 3; i++)
+			{
+				trianglebuffer[triIndex].normals[i][0] = 0;
+				trianglebuffer[triIndex].normals[i][1] = 0;
+				trianglebuffer[triIndex].normals[i][2] = 1;
+			}
+		}
+
 		if (interp_mode == GZ_FLAT)
 		{
 			// choose first norm coord0
@@ -776,6 +787,23 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			}
 		}
 		
+		if (triIndex == 1)
+		{
+			trianglebuffer[triIndex].isTransparent = true;
+			for (int i = 0; i < 3; i++)
+			{
+				imagevertices[0][0] -= 12;
+				imagevertices[1][0] -= 12;
+				imagevertices[2][0] -= 12;
+				for (int j = 0; j < 2; j++)
+				{
+					imagevertices[i][j] /= 1.4;
+				}
+				imagevertices[i][2] = 5;
+
+			}
+		}
+
 		//save verts to triangle buffer
 		for (int j = 0; j < 3; j++)
 		{
@@ -1479,6 +1507,9 @@ void GzRender::GzFresnel(GzCoord I, GzCoord N, const float& ior, float& kr)
 
 bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 {
+	// Copy origin ray as backup
+	GzRay originRay;
+	memcpy((void*)&originRay, (void*)&ray, sizeof(GzRay));
 	//find intersection
 	GzTri* triangle;
 	GzCoord hit;
@@ -1509,11 +1540,9 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 
 		if (depth < 3  && triangle->isMirror)
 		{
-			// Copy origin ray as backup
-			GzRay originRay;
-			memcpy((void*)&originRay, (void*)&ray, sizeof(GzRay));
 			float Kr;
-			GzFresnel(ray.direction, normal, 1.3, Kr);
+			float ior = 1.5;
+			GzFresnel(ray.direction, normal, ior, Kr);
 			//part2: color from reflection
 			float vn = GzDot(normal, ray.direction);
 			if (vn > 0) vn = -vn;
@@ -1527,24 +1556,28 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 			{
 				for (int i = 0; i < 3; i++)
 				{
-					tmpResult[i] = Kr * reflectionColor[i];
+					tmpResult[i] += Kr * reflectionColor[i];
 				}
 			}
-
+		}
+		if (depth < 3 && triangle->isTransparent)
+		{
 			float cosi = clamp(-1, 1, GzDot(normal, originRay.direction));
-			float etai = 1, etat = 1.3;
+			float ior = 1.5;
+			float etai = 1, etat = ior;
 			GzCoord n;
 			memcpy((void*)n, (void*)normal, sizeof(GzCoord));
 			if (cosi < 0) { cosi = -cosi; }
-			else { std::swap(etai, etat); n[0]=-normal[0]; n[1] = -normal[1];
-			n[2] = -normal[2];
+			else {
+				std::swap(etai, etat); n[0] = -normal[0]; n[1] = -normal[1];
+				n[2] = -normal[2];
 			}
 			float eta = etai / etat;
 			float k = 1 - eta * eta * (1 - cosi * cosi);
-			memcpy((void*)ray.origin, (void*)hit, sizeof(GzCoord));
-			GzCoord refractionRay = { eta * originRay.direction[0] + (eta * cosi - sqrtf(k)) * n[0], eta * originRay.direction[1] + (eta * cosi - sqrtf(k)) * n[1] , eta * originRay.direction[2] + (eta * cosi - sqrtf(k)) * n[2] };
 			if (k >= 0)
 			{
+				memcpy((void*)ray.origin, (void*)hit, sizeof(GzCoord));
+				GzCoord refractionRay = { eta * originRay.direction[0] + (eta * cosi - sqrtf(k)) * n[0], eta * originRay.direction[1] + (eta * cosi - sqrtf(k)) * n[1] , eta * originRay.direction[2] + (eta * cosi - sqrtf(k)) * n[2] };
 				memcpy((void*)ray.direction, (void*)refractionRay, sizeof(GzCoord));
 				normalize(ray.direction, ray.direction);
 				GzColor refractionColor;
@@ -1552,7 +1585,7 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 				{
 					for (int i = 0; i < 3; i++)
 					{
-						tmpResult[i] = (1-Kr) * refractionColor[i];
+						tmpResult[i] += refractionColor[i];
 					}
 				}
 			}

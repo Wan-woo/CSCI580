@@ -109,6 +109,7 @@ typedef struct {
 	GzColor colors[3];
 	float coeff[4];
 	bool isMirror = false;
+	bool isTransparent = false;
 } GzTri;
 #define GZ_TRIANGLE
 #endif;
