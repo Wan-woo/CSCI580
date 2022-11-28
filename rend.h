@@ -148,6 +148,8 @@ public:
 	bool GzFindFrontestFromList(GzTri*& triangle, GzCoord intersection, BSP_tree* node, GzTri* exception);
 	// Use AABB box checking collision
 	bool GzAABBCollisionDetect(GzTri& triangle, BSP_tree* node);
+	// Compute fresnel ratio
+	void GzFresnel(GzCoord I, GzCoord N, const float& ior, float& kr);
 
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{

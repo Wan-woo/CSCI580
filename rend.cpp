@@ -1457,6 +1457,26 @@ int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 	return GZ_SUCCESS;
 }
 
+void GzRender::GzFresnel(GzCoord I, GzCoord N, const float& ior, float& kr)
+{
+	float cosi = clamp(-1, 1, GzDot(I, N));
+	float etai = 1, etat = ior;
+	if (cosi > 0) { std::swap(etai, etat); }
+	// Compute sini using Snell's law
+	float sint = etai / etat * sqrtf(max(0.f, 1 - cosi * cosi));
+	// Total internal reflection
+	if (sint >= 1) {
+		kr = 1;
+	}
+	else {
+		float cost = sqrtf(max(0.f, 1 - sint * sint));
+		cosi = fabsf(cosi);
+		float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+		float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+		kr = (Rs * Rs + Rp * Rp) / 2;
+	}
+}
+
 bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 {
 	//find intersection
@@ -1487,8 +1507,13 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 		}
 
 
-		if (depth < 3 && triangle->isMirror)
+		if (depth < 3  && triangle->isMirror)
 		{
+			// Copy origin ray as backup
+			GzRay originRay;
+			memcpy((void*)&originRay, (void*)&ray, sizeof(GzRay));
+			float Kr;
+			GzFresnel(ray.direction, normal, 1.3, Kr);
 			//part2: color from reflection
 			float vn = GzDot(normal, ray.direction);
 			if (vn > 0) vn = -vn;
@@ -1502,10 +1527,36 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 			{
 				for (int i = 0; i < 3; i++)
 				{
-					tmpResult[i] = reflectionColor[i];
+					tmpResult[i] = Kr * reflectionColor[i];
 				}
 			}
 
+			float cosi = clamp(-1, 1, GzDot(normal, originRay.direction));
+			float etai = 1, etat = 1.3;
+			GzCoord n;
+			memcpy((void*)n, (void*)normal, sizeof(GzCoord));
+			if (cosi < 0) { cosi = -cosi; }
+			else { std::swap(etai, etat); n[0]=-normal[0]; n[1] = -normal[1];
+			n[2] = -normal[2];
+			}
+			float eta = etai / etat;
+			float k = 1 - eta * eta * (1 - cosi * cosi);
+			memcpy((void*)ray.origin, (void*)hit, sizeof(GzCoord));
+			GzCoord refractionRay = { eta * originRay.direction[0] + (eta * cosi - sqrtf(k)) * n[0], eta * originRay.direction[1] + (eta * cosi - sqrtf(k)) * n[1] , eta * originRay.direction[2] + (eta * cosi - sqrtf(k)) * n[2] };
+			if (k >= 0)
+			{
+				memcpy((void*)ray.direction, (void*)refractionRay, sizeof(GzCoord));
+				normalize(ray.direction, ray.direction);
+				GzColor refractionColor;
+				if (GzIntersectColor(refractionColor, depth + 1, triangle))
+				{
+					for (int i = 0; i < 3; i++)
+					{
+						tmpResult[i] = (1-Kr) * refractionColor[i];
+					}
+				}
+			}
+			//return k < 0 ? 0 : eta * I + (eta * cosi - sqrtf(k)) * n;
 
 			//todo: part3: color from refraction
 		}
