@@ -99,6 +99,8 @@ public:
 	bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception);
 	int ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal);
 	bool GzFindFrontestIntersection(GzTri*& triangle, GzCoord intersection, GzTri* exception);
+	int PerspectiveCorrection(GzTextureIndex uvVals[], GzCoord pixel, GzCoord verts[], GzTextureIndex affine);
+	int ComputeTextureIndex(GzCoord hit, GzTri triangle);
 	int GzRender::ComputeHitPointNormal(GzCoord hit, GzTri triangle, GzCoord normal);
 	void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzCoord normal, GzColor result);
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
