@@ -1,7 +1,8 @@
 #include	"gz.h"
+#include	<vector>
 #ifndef GZRENDER_
 #define GZRENDER_
-
+using namespace std;
 
 /* Camera defaults */
 #define	DEFAULT_FOV		35.0
@@ -17,6 +18,10 @@
 #define	MATLEVELS	100		/* how many matrix pushes allowed */
 #define	MAX_LIGHTS	10		/* how many lights allowed */
 #define	MAX_TRIANGLES	1000		/* how many triangles allowed */
+
+/*  BSP_Tree params*/
+#define BSP_MAX_DEPTH		10	/* BSP Tree max depth*/
+#define BSP_MAX_NODE_SIZE	10	/* BSP Tree leaf node max candidate list length*/
 
 class GzRender{			/* define a renderer */
   
@@ -103,6 +108,47 @@ public:
 	int ComputeTextureIndex(GzCoord hit, GzTri triangle);
 	int GzRender::ComputeHitPointNormal(GzCoord hit, GzTri triangle, GzCoord normal);
 	void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzCoord normal, GzColor result);
+	// Alternate method using BSP Tree
+// define BSP struct
+	struct BSP_tree
+	{
+		int order;				//0: xy (front:z>0) 1:yz (front:x>0) 2:xz (front:y>0)
+		vector<int>		triangles;
+		BSP_tree* front = NULL, * back = NULL;
+		float min_x = FLT_MAX, min_y = FLT_MAX, min_z = FLT_MAX;	/* bounding box */
+		float max_x = FLT_MIN, max_y = FLT_MIN, max_z = FLT_MIN;
+
+		BSP_tree()
+		{
+
+		}
+
+		BSP_tree(BSP_tree* node)
+		{
+			order = (node->order + 1) % 3;
+			min_x = node->min_x;
+			min_y = node->min_y;
+			min_z = node->min_z;
+			max_x = node->max_x;
+			max_y = node->max_y;
+			max_z = node->max_z;
+		}
+	};
+	// Root node 
+	BSP_tree* root;
+	// Checking vertex inside bounding box
+	bool insideBoundingBox(GzCoord vertex, BSP_tree* node);
+	// Create BSP Tree
+	void GzCreateBSPTree(BSP_tree* node, int depth);
+	// Traverse in BSP Tree
+	bool GzRayTreeIntersect(BSP_tree* node, GzTri*& triangle, GzCoord intersection, float min, float max, GzTri* exception);
+	// Find frontest intersection
+	bool GzFindFrontestIntersection_BSP(GzTri*& triangle, GzCoord intersection, GzTri* exception);
+	// Find frontest intersection from candidate list
+	bool GzFindFrontestFromList(GzTri*& triangle, GzCoord intersection, BSP_tree* node, GzTri* exception);
+	// Use AABB box checking collision
+	bool GzAABBCollisionDetect(GzTri& triangle, BSP_tree* node);
+
 	float GzRender::dotProduct(GzCoord s1, GzCoord s2)
 	{
 		float res = 0;
