@@ -8,7 +8,6 @@
 #include	<limits>
 
 #define PI (float) 3.14159265358979323846
-
 int GzRender::GzRotXMat(float degree, GzMatrix mat)
 {
 /* HW 3.1
@@ -132,9 +131,9 @@ int GzRender::GzDefault()
 		for (int j = 0; j < yres; j++)
 		{
 			pixelbuffer[j * xres + i].alpha = 1;
-			pixelbuffer[j * xres + i].red = 3176;
+			pixelbuffer[j * xres + i].red = 4095;
 			pixelbuffer[j * xres + i].blue = 4095;
-			pixelbuffer[j * xres + i].green = 1128;
+			pixelbuffer[j * xres + i].green = 4095;
 			pixelbuffer[j * xres + i].z = 2147483647;
 			pixelbuffer[j * xres + i].triangle = nullptr;
 			pixelbuffer[j * xres + i].tValue = (float)MAXINT;
@@ -750,6 +749,28 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		GzComputeCoord(X2image[matlevel - 1], temp[1], imagevertices[1]);
 		GzComputeCoord(X2image[matlevel - 1], temp[2], imagevertices[2]);
 
+		if (triIndex == 0)
+		{
+			//create the mirror input!
+			trianglebuffer[triIndex].isMirror = true;
+
+			imagevertices[0][0] -= 30;
+			imagevertices[1][0] -= 30;
+			imagevertices[2][0] -= 30;
+			imagevertices[0][1] += 10;
+			imagevertices[1][1] += 10;
+			imagevertices[2][1] += 10;
+			for (int i = 0; i < 3; i++)
+			{
+				for (int j = 0; j < 2; j++)
+				{
+					//imagevertices[i][j] *= 5;
+				}
+				imagevertices[i][2] = 50;
+				
+			}
+		}
+		
 		//save verts to triangle buffer
 		for (int j = 0; j < 3; j++)
 		{
@@ -785,16 +806,13 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 int GzRender::GzRaytracing()
 {
+
 	//shoot primary ray through each pixel
 	float focalDistance = 1 / tan(m_camera.FOV * PI / (180 * 2));
 	for (int i = 0; i < xres; i++)
 	{
 		for (int j = 0; j < yres; j++)
 		{
-			if (i == 169 && j == 88)
-			{
-				int xjfksda = 3;
-			}
 			//compute primary ray
 			GzCoord start = { 0, 0, 0 };
 			memcpy((void*)ray.origin, (void*)start, sizeof(GzCoord));
@@ -804,7 +822,7 @@ int GzRender::GzRaytracing()
 
 			//compute color at this screen pixel and draw
 			GzColor color;
-			bool result = GzIntersectColor(color);
+			bool result = GzIntersectColor(color, 0, nullptr);
 			if (result)
 			{
 				this->GzPut(i, j, ctoi(color[0]), ctoi(color[1]), ctoi(color[2]), 1, pixelbuffer[j * xres + i].z);
@@ -1074,12 +1092,12 @@ int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 	return GZ_SUCCESS;
 }
 
-bool GzRender::GzIntersectColor(GzColor result)
+bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 {
 	//find intersection
 	GzTri* triangle;
 	GzCoord hit;
-	bool hasIntersection = GzFindFrontestIntersection(triangle, hit, nullptr);
+	bool hasIntersection = GzFindFrontestIntersection(triangle, hit, exception);
 	if (!hasIntersection)
 	{
 		return false;
@@ -1089,20 +1107,43 @@ bool GzRender::GzIntersectColor(GzColor result)
 		GzColor tmpResult = { 0, 0, 0 };
 		//part1: color from lights
 		GzColor lightShadingColor;
-		ComputeLightShading(triangle, hit, lightShadingColor);
+		GzCoord normal;
+		ComputeHitPointNormal(hit, *triangle, normal);
+		ComputeLightShading(triangle, hit, normal, lightShadingColor);
 		for (int i = 0; i < 3; i++)
 		{
 			tmpResult[i] += lightShadingColor[i];
 		}
 
-		//todo: part2: color from reflection
 
-		//todo: part3: color from refraction
+		if (depth < 3 && triangle->isMirror)
+		{
+			//part2: color from reflection
+			float vn = GzDot(normal, ray.direction);
+			if (vn > 0) vn = -vn;
+			GzCoord reflectionRay = { -2 * vn * normal[0] + ray.direction[0], -2 * vn * normal[1] + ray.direction[1], -2 * vn * normal[2] + ray.direction[2] };
+			memcpy((void*)ray.origin, (void*)hit, sizeof(GzCoord));
+			memcpy((void*)ray.direction, (void*)reflectionRay, sizeof(GzCoord));
+			normalize(ray.direction, ray.direction);
+
+			GzColor reflectionColor;
+			if (GzIntersectColor(reflectionColor, depth + 1, triangle))
+			{
+				for (int i = 0; i < 3; i++)
+				{
+					tmpResult[i] = reflectionColor[i];
+				}
+			}
+
+
+			//todo: part3: color from refraction
+		}
+		
 
 		//todo : add reflection and refraction color, clamp value
 		for (int i = 0; i < 3; i++)
 		{
-			result[i] = tmpResult[i];
+			result[i] = clamp(0, 1, tmpResult[i]);
 		}
 		return true;
 	}
@@ -1139,22 +1180,16 @@ int GzRender::ComputeHitPointNormal(GzCoord hit, GzTri triangle, GzCoord normal)
 	return GZ_SUCCESS;
 }
 
-void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzColor result)
+void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPoint, GzCoord normal, GzColor result)
 {
 	// ray shoot from intersection point to light
 	memcpy((void*)ray.origin, (void*)intersectPoint, sizeof(GzCoord));
 
-	GzCoord normal;
-	for (int i = 0; i < 3; i++)
-	{
-		//normal[i] = intersectTriangle->normals[0][i];//falt shading for now
-		ComputeHitPointNormal(intersectPoint, *intersectTriangle, normal);
-		
-	}
-	//todo: use phong shading
-	//ComputePixelNormal(i, j, triangle, normal);
-
+	//eye vector should be adjusted according to the ray!
 	GzCoord eye = { 0, 0, -1 };
+	memcpy((void*)eye, (void*)ray.direction, sizeof(GzCoord));
+	scalarProduct(eye, -1, eye);
+
 	GzColor color = { 0, 0, 0 };
 	GzCoord specular = { 0, 0, 0 }, diffuse = { 0, 0, 0 };
 	for (int l = 0; l < numlights; l++)

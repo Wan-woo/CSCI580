@@ -108,6 +108,7 @@ typedef struct {
 	GzTextureIndex uv[3];
 	GzColor colors[3];
 	float coeff[4];
+	bool isMirror = false;
 } GzTri;
 #define GZ_TRIANGLE
 #endif;
