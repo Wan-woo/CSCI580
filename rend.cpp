@@ -1043,6 +1043,89 @@ int GzRender::Rasterize(GzTri triangle)
 	return GZ_SUCCESS;
 }
 
+int GzRender::PerspectiveCorrection(GzTextureIndex uvVals[], GzCoord pixel, GzCoord verts[], GzTextureIndex affine)
+{
+	//if at vertex: compute texture color using vertex u,v
+	//if not at vertex: interpolate u,v values, then compute color
+	int i, j, k;
+
+	//transform u,v, into perspective space U,V
+	GzTextureIndex perspUV[3];
+	float Vz;
+	for (i = 0; i < 3; i++)
+	{
+		Vz = verts[i][Z] / (MAXINT - verts[i][Z]);
+		perspUV[i][U] = uvVals[i][U] / (Vz + 1);
+		perspUV[i][V] = uvVals[i][V] / (Vz + 1);
+	}
+
+	//interpolate transformed U,V for current pixel
+	float edgesdX[3], edgesdY[3], edgesdU[3], edgesdV[3];
+
+	edgesdX[0] = verts[1][X] - verts[0][X];
+	edgesdY[0] = verts[1][Y] - verts[0][Y];
+	edgesdU[0] = perspUV[1][U] - perspUV[0][U];
+	edgesdV[0] = perspUV[1][V] - perspUV[0][V];
+
+	edgesdX[1] = verts[2][X] - verts[1][X];
+	edgesdY[1] = verts[2][Y] - verts[1][Y];
+	edgesdU[1] = perspUV[2][U] - perspUV[1][U];
+	edgesdV[1] = perspUV[2][V] - perspUV[1][V];
+
+	edgesdX[2] = verts[0][X] - verts[2][X];
+	edgesdY[2] = verts[0][Y] - verts[2][Y];
+	edgesdU[2] = perspUV[0][U] - perspUV[2][U];
+	edgesdV[2] = perspUV[0][V] - perspUV[2][V];
+
+	//A*x + B*y + C*(U, V) + D = 0
+	GzTextureIndex interpUV;
+	float Acoeff, B, C, D;
+
+	//U
+	Acoeff = edgesdY[0] * edgesdU[1] - edgesdU[0] * edgesdY[1];
+	B = edgesdU[0] * edgesdX[1] - edgesdX[0] * edgesdU[1];
+	C = edgesdX[0] * edgesdY[1] - edgesdY[0] * edgesdX[1];
+	D = -1 * (Acoeff * verts[0][X] + B * verts[0][Y] + C * perspUV[0][U]);
+	interpUV[U] = -1 * (Acoeff * pixel[X] + B * pixel[Y] + D) / C;
+
+	//V
+	Acoeff = edgesdY[0] * edgesdV[1] - edgesdV[0] * edgesdY[1];
+	B = edgesdV[0] * edgesdX[1] - edgesdX[0] * edgesdV[1];
+	C = edgesdX[0] * edgesdY[1] - edgesdY[0] * edgesdX[1];
+	D = -1 * (Acoeff * verts[0][X] + B * verts[0][Y] + C * perspUV[0][V]);
+	interpUV[V] = -1 * (Acoeff * pixel[X] + B * pixel[Y] + D) / C;
+
+	//transform interpolated U,V into affine space u,v for function
+	Vz = pixel[Z] / (MAXINT - pixel[Z]);
+	affine[U] = interpUV[U] * (Vz + 1);
+	affine[V] = interpUV[V] * (Vz + 1);
+
+	return GZ_SUCCESS;
+}
+
+int GzRender::ComputeTextureIndex(GzCoord hit, GzTri triangle)
+{
+	if (interp_mode == GZ_FLAT)
+	{
+		//no textures for flat shading
+		return GZ_SUCCESS;
+	}
+
+	GzTextureIndex affineUV;
+	PerspectiveCorrection(triangle.uv, hit, triangle.imageVerts, affineUV);
+	
+	GzColor textureColor;
+	tex_fun(affineUV[U], affineUV[V], textureColor);
+
+	if (interp_mode == GZ_NORMALS)
+	{
+		memcpy((void*)Kd, (void*)textureColor, sizeof(GzColor));
+		memcpy((void*)Ka, (void*)textureColor, sizeof(GzColor));
+	}
+
+	return GZ_SUCCESS;
+}
+
 int GzRender::ComputePixelNormal(int i, int j, GzTri triangle, GzCoord normal)
 {
 	GzCoord coeff[3] = { {triangle.uv[0][0] / (triangle.screenVerts[0][2] + 1), triangle.uv[0][1] / (triangle.screenVerts[0][2] + 1), 1},
@@ -1089,6 +1172,10 @@ bool GzRender::GzIntersectColor(GzColor result)
 		GzColor tmpResult = { 0, 0, 0 };
 		//part1: color from lights
 		GzColor lightShadingColor;
+		if (tex_fun != 0)
+		{
+			ComputeTextureIndex(hit, *triangle);
+		}
 		ComputeLightShading(triangle, hit, lightShadingColor);
 		for (int i = 0; i < 3; i++)
 		{
@@ -1152,7 +1239,6 @@ void GzRender::ComputeLightShading(GzTri* intersectTriangle, GzCoord intersectPo
 		
 	}
 	//todo: use phong shading
-	//ComputePixelNormal(i, j, triangle, normal);
 
 	GzCoord eye = { 0, 0, -1 };
 	GzColor color = { 0, 0, 0 };
