@@ -6,6 +6,8 @@
 #include	"Gz.h"
 #include	"rend.h"
 #include	<limits>
+#include <time.h>
+long  start, mid, ending;
 
 #define PI (float) 3.14159265358979323846
 int GzRender::GzRotXMat(float degree, GzMatrix mat)
@@ -348,6 +350,9 @@ int GzRender::GzFlushDisplay2File(FILE* outfile)
 			fwrite(color, 1, 3, outfile);
 		}
 	}
+	char* clock = new char[30];
+	sprintf(clock, "%f %f %f", (float)start * 1000/ CLOCKS_PER_SEC, (float)mid * 1000 / CLOCKS_PER_SEC, (float)ending * 1000 / CLOCKS_PER_SEC);
+	fputs(clock, outfile);
 	return GZ_SUCCESS;
 }
 
@@ -711,7 +716,17 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 			trianglebuffer[triIndex].normals[1][i] = coord1[i];
 			trianglebuffer[triIndex].normals[2][i] = coord2[i];
 		}
+		if (triIndex == 0)
+		{
 
+			for (int i = 0; i < 3; i++)
+			{
+				trianglebuffer[triIndex].normals[i][0] = 0;
+				trianglebuffer[triIndex].normals[i][1] = 0;
+				trianglebuffer[triIndex].normals[i][2] = 1;
+
+			}
+		}
 		if (interp_mode == GZ_FLAT)
 		{
 			// choose first norm coord0
@@ -1085,9 +1100,11 @@ bool GzRender::GzFindFrontestFromList(GzTri*& intersectTriangle, GzCoord interse
 int GzRender::GzRaytracing()
 {
 	
+	start = clock();
 	/* GzCreateBSPTree initial */
 	for (int i = 0; i < triIndex; i++)	root->triangles.push_back(i);
 	GzCreateBSPTree(root, 1);
+	mid = clock();
 
 	//shoot primary ray through each pixel
 	float focalDistance = 1 / tan(m_camera.FOV * PI / (180 * 2));
@@ -1113,7 +1130,7 @@ int GzRender::GzRaytracing()
 
 		}
 	}
-
+	ending = clock();
 	return GZ_SUCCESS;
 }
 
@@ -1463,6 +1480,8 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 	GzTri* triangle;
 	GzCoord hit;
 	bool hasIntersection = GzFindFrontestIntersection_BSP(triangle, hit, exception);
+	GzRay originRay;
+	memcpy((void*)&originRay, (void*)&ray, sizeof(GzRay));
 
 	if (!hasIntersection)
 	{
@@ -1490,7 +1509,7 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 		if (depth < 3 && triangle->isMirror)
 		{
 			//part2: color from reflection
-			float vn = GzDot(normal, ray.direction);
+			float vn = GzDot(normal, originRay.direction);
 			if (vn > 0) vn = -vn;
 			GzCoord reflectionRay = { -2 * vn * normal[0] + ray.direction[0], -2 * vn * normal[1] + ray.direction[1], -2 * vn * normal[2] + ray.direction[2] };
 			memcpy((void*)ray.origin, (void*)hit, sizeof(GzCoord));

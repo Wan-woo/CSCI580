@@ -21,7 +21,7 @@ using namespace std;
 
 /*  BSP_Tree params*/
 #define BSP_MAX_DEPTH		10	/* BSP Tree max depth*/
-#define BSP_MAX_NODE_SIZE	10	/* BSP Tree leaf node max candidate list length*/
+#define BSP_MAX_NODE_SIZE	20	/* BSP Tree leaf node max candidate list length*/
 
 class GzRender{			/* define a renderer */
   
