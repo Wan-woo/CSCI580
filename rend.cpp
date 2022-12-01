@@ -773,9 +773,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		{
 			trianglebuffer[triIndex].isMirror = true;
 
-			imagevertices[0][0] -= 40;
-			imagevertices[1][0] -= 40;
-			imagevertices[2][0] -= 40;
+			imagevertices[0][0] -= 30;
+			imagevertices[1][0] -= 30;
+			imagevertices[2][0] -= 30;
 			imagevertices[0][1] += 10;
 			imagevertices[1][1] += 10;
 			imagevertices[2][1] += 10;
