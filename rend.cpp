@@ -350,9 +350,9 @@ int GzRender::GzFlushDisplay2File(FILE* outfile)
 			fwrite(color, 1, 3, outfile);
 		}
 	}
-	char* clock = new char[30];
-	sprintf(clock, "%f %f %f", (float)start * 1000/ CLOCKS_PER_SEC, (float)mid * 1000 / CLOCKS_PER_SEC, (float)ending * 1000 / CLOCKS_PER_SEC);
-	fputs(clock, outfile);
+	//char* clock = new char[30];
+	//sprintf(clock, "%f %f %f", (float)start * 1000/ CLOCKS_PER_SEC, (float)mid * 1000 / CLOCKS_PER_SEC, (float)ending * 1000 / CLOCKS_PER_SEC);
+	//fputs(clock, outfile);
 	return GZ_SUCCESS;
 }
 
@@ -721,10 +721,9 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 
 			for (int i = 0; i < 3; i++)
 			{
-				trianglebuffer[triIndex].normals[i][0] = 0;
+				trianglebuffer[triIndex].normals[i][0] = 0.5;
 				trianglebuffer[triIndex].normals[i][1] = 0;
-				trianglebuffer[triIndex].normals[i][2] = 1;
-
+				trianglebuffer[triIndex].normals[i][2] = -0.866;
 			}
 		}
 		if (interp_mode == GZ_FLAT)
@@ -774,21 +773,16 @@ int GzRender::GzPutTriangle(int numParts, GzToken *nameList, GzPointer *valueLis
 		{
 			trianglebuffer[triIndex].isMirror = true;
 
-			imagevertices[0][0] -= 30;
-			imagevertices[1][0] -= 30;
-			imagevertices[2][0] -= 30;
+			imagevertices[0][0] -= 40;
+			imagevertices[1][0] -= 40;
+			imagevertices[2][0] -= 40;
 			imagevertices[0][1] += 10;
 			imagevertices[1][1] += 10;
 			imagevertices[2][1] += 10;
-			for (int i = 0; i < 3; i++)
-			{
-				for (int j = 0; j < 2; j++)
-				{
-					//imagevertices[i][j] *= 5;
-				}
-				imagevertices[i][2] = 50;
-				
-			}
+			
+			imagevertices[0][2] = 40;
+			imagevertices[1][2] = 35;
+			imagevertices[2][2] = 35;
 		}
 		
 		//save verts to triangle buffer
@@ -1511,7 +1505,7 @@ bool GzRender::GzIntersectColor(GzColor result, int depth, GzTri* exception)
 			//part2: color from reflection
 			float vn = GzDot(normal, originRay.direction);
 			if (vn > 0) vn = -vn;
-			GzCoord reflectionRay = { -2 * vn * normal[0] + ray.direction[0], -2 * vn * normal[1] + ray.direction[1], -2 * vn * normal[2] + ray.direction[2] };
+			GzCoord reflectionRay = { -2 * vn * normal[0] + originRay.direction[0], -2 * vn * normal[1] + originRay.direction[1], -2 * vn * normal[2] + originRay.direction[2] };
 			memcpy((void*)ray.origin, (void*)hit, sizeof(GzCoord));
 			memcpy((void*)ray.direction, (void*)reflectionRay, sizeof(GzCoord));
 			normalize(ray.direction, ray.direction);
